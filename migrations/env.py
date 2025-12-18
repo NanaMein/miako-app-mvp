@@ -8,6 +8,8 @@ from sqlmodel import SQLModel
 
 from alembic import context
 
+from models.message_model import Message
+
 import os
 from dotenv import load_dotenv
 load_dotenv()
