@@ -1,0 +1,32 @@
+# Git and Docker files
+.git/
+.gitignore
+.dockerignore
+Dockerfile
+
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# PyCharm files
+.idea/
+
+# Byte-compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Documentation
+docs/
+
+# Local development files
+*.md
+LICENSE
+README.md
+
+# Test files
+tests/
+*.test.py
+*.spec.py
+.pytest_cache/
