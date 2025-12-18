@@ -3,6 +3,7 @@ from enum import Enum
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, DateTime
 
 class Role(str, Enum):
     USER = "user"
@@ -18,5 +19,8 @@ class Message(MessageBase, SQLModel, table=True):
 
     date_timestamp: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        sa_column_kwargs={"server_default": "now()"}
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False
+        )
     )
