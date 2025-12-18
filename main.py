@@ -4,10 +4,12 @@ from fastapi import FastAPI, status, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
+from routers.message_router import router as message_router
 
 load_dotenv()
 
 app = FastAPI()
+app.include_router(message_router)
 
 class HelloWorld(BaseModel):
     message: Optional[str] = None
