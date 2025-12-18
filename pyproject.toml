@@ -1,0 +1,24 @@
+[project]
+name = "miako-app-mvp"
+version = "0.1.0"
+description = """**Mirai Aiko** (shortened to **Miako** for the domain and branding)
+ – MVP demo of the AI assistant app. Private build for early testing with core features only."""
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.125.0",
+    "uvicorn>=0.38.0",
+    "asyncpg>=0.31.0",
+    "groq>=1.0.0",
+    "llama-index>=0.14.8",
+    "llama-index-embeddings-cohere>=0.6.1",
+    "llama-index-vector-stores-milvus>=0.9.4",
+    "python-dotenv>=1.2.1",
+    "python-jose[cryptography]>=3.3.0",
+    "sqlmodel>=0.0.21",
+    "sentencepiece>=0.2.1",
+    "alembic>=1.17.2",
+    "crewai>=1.6.1",
+    "python-multipart>=0.0.20",
+    "passlib[argon2]>=1.7.4",
+    "llama-index-llms-groq>=0.4.1",
+]
