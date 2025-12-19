@@ -9,7 +9,15 @@ agents = AgentsWorkflow()
 def workflow_orchestrator(inputs: dict[str, Any]):
     try:
         crewai = agents.crew().kickoff(inputs=inputs)
-        return crewai
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
+        return crewai.raw
+    except Exception as ex:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Unexpected Error Handling: {ex}")
 
+
+
+if __name__ == "__main__":
+    inputs = {
+        "topic":"Asahina Mafuyu"
+    }
+    result = workflow_orchestrator(inputs=inputs)
+    print(result)
