@@ -19,5 +19,9 @@ def workflow_orchestrator(inputs: str):
 
 
 if __name__ == "__main__":
-    input = ""
-    result = workflow_orchestrator(inputs=input)
+
+    inputs = {
+        "topic":"Asahina Mafuyu"
+    }
+    result = workflow_orchestrator(inputs=inputs)
+    print(result)
