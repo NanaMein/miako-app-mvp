@@ -7,6 +7,17 @@ from multi_agent_workflow.llms.custom_llm_for_crewai import GroqLLM
 from typing import List
 
 
+def llm_sample_selector(select: int = 0):
+    if select == 1:
+        return "meta-llama/llama-4-scout-17b-16e-instruct"
+    elif select == 2:
+        return "openai/gpt-oss-120b"
+    elif select == 3:
+        return "qwen/qwen3-32b"
+    else:
+        return "meta-llama/llama-4-maverick-17b-128e-instruct"
+
+
 def groq_llm():
     return GroqLLM(
         model=llm_sample_selector(3),
