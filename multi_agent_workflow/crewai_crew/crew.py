@@ -7,21 +7,10 @@ from multi_agent_workflow.llms.custom_llm_for_crewai import GroqLLM
 from typing import List
 
 
-def oss_llm():
+def groq_llm():
     return GroqLLM(
-        model="oss-20b",
-        max_tokens=60000
-    )
-
-def maverick_llm():
-    return GroqLLM(
-        model="maverick",
-        max_tokens=8000,
-    )
-
-def scout_llm():
-    return GroqLLM(
-        model="maverick",
+        model=llm_sample_selector(3),
+        api_key=os.getenv("GROQ_API_KEY"),
         max_tokens=8000,
     )
 
@@ -35,9 +24,7 @@ class MultiAgentWorkflow:
     tasks_config = str(base_path / "config" / "tasks.yaml")
 
     def __init__(self):
-        self.maverick = maverick_llm()
-        self.oss_llm = oss_llm()
-        self.scout = scout_llm()
+        self.llm = groq_llm()
 
     agents: List[BaseAgent]
     tasks: List[Task]
@@ -46,7 +33,7 @@ class MultiAgentWorkflow:
     def researcher(self) -> Agent:
         return Agent(
             config=self.agents_config['researcher'], # type: ignore[index]
-            llm=self.maverick,
+            llm=self.llm,
             verbose=True
         )
 
@@ -54,7 +41,7 @@ class MultiAgentWorkflow:
     def reporting_analyst(self) -> Agent:
         return Agent(
             config=self.agents_config['reporting_analyst'], # type: ignore[index]
-            llm=self.scout,
+            llm=self.llm,
             verbose=True
         )
 
