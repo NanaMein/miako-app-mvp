@@ -1,5 +1,6 @@
 import os
 import logging
+from enum import Enum
 from typing import Any, List, Optional, Dict, Union
 from groq import Groq
 from crewai.llms.base_llm import BaseLLM
@@ -7,12 +8,32 @@ from crewai.utilities.types import LLMMessage
 from crewai.agent.core import Agent
 from crewai.task import Task
 
+class GroqModelList(str, Enum):
+    LLAMA_SCOUT = "meta-llama/llama-4-scout-17b-16e-instruct"
+    LLAMA_MAVERICK = "meta-llama/llama-4-maverick-17b-128e-instruct"
+    QWEN_QWEN = "qwen/qwen3-32b"
+    VERSATILE = "llama-3.3-70b-versatile"
+    INSTANT = "llama-3.1-8b-instant"
+    OSS_20 = "openai/gpt-oss-20b"
+
 
 class GroqLLM(BaseLLM):
+    """
+    models: scout, maverick, qwen, versatile, instant, oss-20b
+    """
+
+    MODEL_ALIASES = {
+        "scout" : GroqModelList.LLAMA_SCOUT,
+        "maverick" : GroqModelList.LLAMA_MAVERICK,
+        "qwen" : GroqModelList.QWEN_QWEN,
+        "versatile" : GroqModelList.VERSATILE,
+        "instant" : GroqModelList.INSTANT,
+        "oss-20b" : GroqModelList.OSS_20
+    }
 
     def __init__(
             self,
-            model: str = "llama-3.1-8b-instant",
+            model: str = "scout",
             api_key: Optional[str] = None,
             temperature: float = 0.7,
             max_tokens: Optional[int] = None,
@@ -21,8 +42,13 @@ class GroqLLM(BaseLLM):
     ) -> None:
 
 
+        resolved_models = self.MODEL_ALIASES.get(model, model)
+
+        if isinstance(resolved_models, Enum):
+            resolved_models = resolved_models.value
+
         super().__init__(
-            model=model,
+            model=resolved_models,
             temperature=temperature,
             api_key=api_key or os.getenv("GROQ_API_KEY"),
             **kwargs,
