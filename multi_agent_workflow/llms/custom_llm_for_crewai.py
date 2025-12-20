@@ -95,10 +95,21 @@ class GroqLLM(BaseLLM):
             if response_model:
                 params["response_format"] = {"type": "json_object"}
 
+
+
             if tools:
                 params["tools"] = self._convert_tools_to_groq_format(tools)
                 params["tool_choice"] = "auto"
 
+            if self.model == GroqModelList.QWEN_QWEN.value:
+                params["reasoning_effort"] = "default"
+                params["reasoning_format"] = "hidden"
+                params["top_p"] = 0.95
+
+            if self.model == GroqModelList.OSS_20.value:
+                params["tools"] = [{"type":"browser_search"}]
+                params["reasoning_effort"] = "medium"
+                params["max_tokens"] = 60000
 
             response = self.client.chat.completions.create(**params)
             message = response.choices[0].message
