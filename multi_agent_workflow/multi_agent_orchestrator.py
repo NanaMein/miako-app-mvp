@@ -17,7 +17,7 @@ def workflow_orchestrator(inputs: dict[str, Any]):
 
 if __name__ == "__main__":
     inputs = {
-        "topic":"Asahina Mafuyu"
+        "topic":"Hatsune Miku"
     }
     result = workflow_orchestrator(inputs=inputs)
     print(result)
