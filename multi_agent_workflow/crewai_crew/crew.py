@@ -7,21 +7,15 @@ from multi_agent_workflow.llms.custom_llm_for_crewai import GroqLLM
 from typing import List
 
 
-def llm_sample_selector(select: int = 0):
-    if select == 1:
-        return "meta-llama/llama-4-scout-17b-16e-instruct"
-    elif select == 2:
-        return "openai/gpt-oss-120b"
-    elif select == 3:
-        return "qwen/qwen3-32b"
-    else:
-        return "meta-llama/llama-4-maverick-17b-128e-instruct"
-
+def oss_llm():
+    return GroqLLM(
+        model="oss-20b",
+        max_tokens=60000
+    )
 
 def groq_llm():
     return GroqLLM(
-        model=llm_sample_selector(3),
-        api_key=os.getenv("GROQ_API_KEY"),
+        model="maverick",
         max_tokens=8000,
     )
 
@@ -35,7 +29,8 @@ class MultiAgentWorkflow:
     tasks_config = str(base_path / "config" / "tasks.yaml")
 
     def __init__(self):
-        self.llm = groq_llm()
+        self.maverick = groq_llm()
+        self.oss_llm = oss_llm()
 
     agents: List[BaseAgent]
     tasks: List[Task]
@@ -44,7 +39,7 @@ class MultiAgentWorkflow:
     def researcher(self) -> Agent:
         return Agent(
             config=self.agents_config['researcher'], # type: ignore[index]
-            llm=self.llm,
+            llm=self.oss_llm,
             verbose=True
         )
 
@@ -52,7 +47,7 @@ class MultiAgentWorkflow:
     def reporting_analyst(self) -> Agent:
         return Agent(
             config=self.agents_config['reporting_analyst'], # type: ignore[index]
-            llm=self.llm,
+            llm=self.maverick,
             verbose=True
         )
 
