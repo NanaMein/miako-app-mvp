@@ -46,7 +46,7 @@ class MultiAgentWorkflow:
     def researcher(self) -> Agent:
         return Agent(
             config=self.agents_config['researcher'], # type: ignore[index]
-            llm=self.oss_llm,
+            llm=self.maverick,
             verbose=True
         )
 
@@ -54,7 +54,7 @@ class MultiAgentWorkflow:
     def reporting_analyst(self) -> Agent:
         return Agent(
             config=self.agents_config['reporting_analyst'], # type: ignore[index]
-            llm=self.maverick,
+            llm=self.scout,
             verbose=True
         )
 
