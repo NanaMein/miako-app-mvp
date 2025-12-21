@@ -63,3 +63,5 @@ app_demo/
 # For the output file of crewai after finishing task
 task_report1.md
 task_report2.md
+# Adding gitignore rules for crewai configuration files
+multi_agent_workflow/configs/*.yaml
