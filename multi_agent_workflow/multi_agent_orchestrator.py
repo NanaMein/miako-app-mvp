@@ -6,8 +6,11 @@ from multi_agent_workflow.crewai_crew.crew import MultiAgentWorkflow as AgentsWo
 
 agents = AgentsWorkflow()
 
-def workflow_orchestrator(inputs: dict[str, Any]):
+def workflow_orchestrator(inputs: str):
     try:
+        inputs = {
+            "topic": inputs
+        }
         crewai = agents.crew().kickoff(inputs=inputs)
         return crewai.raw
     except Exception as ex:
@@ -16,8 +19,5 @@ def workflow_orchestrator(inputs: dict[str, Any]):
 
 
 if __name__ == "__main__":
-    inputs = {
-        "topic":"Hatsune Miku"
-    }
-    result = workflow_orchestrator(inputs=inputs)
-    print(result)
+    input = ""
+    result = workflow_orchestrator(inputs=input)
