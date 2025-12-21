@@ -1,9 +1,19 @@
 research_task:
   description: >
 
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is 2025
+    <user_query> {topic} </user_query>
+    <instructions> 
+    Understand the user_query and answer the questions:
+    
+    1. What is the user_query intents? Please explain why do you think so?
+    2. Is user_query speaking English or Tagalog or Taglish? Please explain what makes you think they use that language?
+    3. Is user using unknown or incomprehensible words that could be considered slangs, generation-Z word, 
+    dialects or probably names or expressions? Please explain what do you understand in user_query context if such 
+    words identified like that.
+    4. For initial assessment, What do you think is the user talking about and your understanding based on context?
+    Explain it and dont limit your findings but a maximum of 10 sentences can be done only. A minimum of 1 sentence 
+    for a very easy task like English conversation.
+    </instructions>
   expected_output: >
     Answer the list using the [user_query : {topic}] each number should be answered in detailed and concise answers.
   agent: researcher
