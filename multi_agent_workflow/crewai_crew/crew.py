@@ -13,7 +13,13 @@ def oss_llm():
         max_tokens=60000
     )
 
-def groq_llm():
+def maverick_llm():
+    return GroqLLM(
+        model="maverick",
+        max_tokens=8000,
+    )
+
+def scout_llm():
     return GroqLLM(
         model="maverick",
         max_tokens=8000,
@@ -29,8 +35,9 @@ class MultiAgentWorkflow:
     tasks_config = str(base_path / "config" / "tasks.yaml")
 
     def __init__(self):
-        self.maverick = groq_llm()
+        self.maverick = maverick_llm()
         self.oss_llm = oss_llm()
+        self.scout = scout_llm()
 
     agents: List[BaseAgent]
     tasks: List[Task]
