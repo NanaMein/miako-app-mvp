@@ -1,17 +1,29 @@
 research_task:
   description: >
-    Conduct a thorough research about {topic}
-    Make sure you find any interesting and relevant information given
-    the current year is 2025
+    <user_query> {topic} </user_query>
+    <instructions> 
+    Understand the user_query and answer the questions:
+    
+    1. What is the user_query intents? Please explain why do you think so?
+    2. Is user_query speaking English or Tagalog or Taglish? Please explain what makes you think they use that language?
+    3. Is user using unknown or incomprehensible words that could be considered slangs, generation-Z word, 
+    dialects or probably names or expressions? Please explain what do you understand in user_query context if such 
+    words identified like that.
+    4. For initial assessment, What do you think is the user talking about and your understanding based on context?
+    Explain it and dont limit your findings but a maximum of 10 sentences can be done only. A minimum of 1 sentence 
+    for a very easy task like English conversation.
+    </instructions>
   expected_output: >
-    A list with 10 bullet points of the most relevant information about {topic}
+    Answer the list using the [user_query : {topic}] each number should be answered in detailed and concise answers.
   agent: researcher
 
 reporting_task:
   description: >
-    Review the context you got and expand each topic into a full section for a report.
-    Make sure the report is detailed and contains any and all relevant information.
+    Using the context and the [user_query : {topic} ], transform all context into conversational answer.
+    Answer should be using only what user_query is using. If it is tagalog, then reply in tagalog, if it is English, 
+    reply in English. If it is Taglish, reply or mirror but the important thing is replying in Tagalog with some english
+    words that can be used as nouns or an object. Be creative in text sentence but dont add unnecessary topics or long 
+    explanations
   expected_output: >
-    A fully fledged report with the main topics, each with a full section of information.
-    Formatted as markdown without '```'
+    Answer the {topic} and make it conversational text like how chatbot reply to customers.
   agent: reporting_analyst
