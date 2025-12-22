@@ -1,7 +1,8 @@
 research_task:
   description: >
 
-    <user_query> {topic} </user_query>
+    <user_query> {user_input} </user_query>
+    <previous_conversation_history> {history} </previous_conversation_history>
     <instructions> 
     Understand the user_query and answer the questions:
     
@@ -13,18 +14,20 @@ research_task:
     4. For initial assessment, What do you think is the user talking about and your understanding based on context?
     Explain it and dont limit your findings but a maximum of 10 sentences can be done only. A minimum of 1 sentence 
     for a very easy task like English conversation.
+    5. Summary of the previous context for better contextual understanding and not hallucinate.
     </instructions>
   expected_output: >
-    Answer the list using the [user_query : {topic}] each number should be answered in detailed and concise answers.
+    Answer the list using the [user_query : {user_input}] each number should be answered in detailed and concise answers.
   agent: researcher
 
 reporting_task:
   description: >
-    Using the context and the [user_query : {topic} ], transform all context into conversational answer.
+    Using the context and the [user_query : {user_input} ], transform all context into conversational answer.
     Answer should be using only what user_query is using. If it is tagalog, then reply in tagalog, if it is English, 
     reply in English. If it is Taglish, reply or mirror but the important thing is replying in Tagalog with some english
     words that can be used as nouns or an object. Be creative in text sentence but dont add unnecessary topics or long 
     explanations
   expected_output: >
-    Answer the {topic} and make it conversational text like how chatbot reply to customers.
+    Answer the  [user_query : {user_input} ] and make it conversational text like how chatbot reply to customers. 
+    Use the previous conversation [ context : {history}] as supporting information as context
   agent: reporting_analyst
