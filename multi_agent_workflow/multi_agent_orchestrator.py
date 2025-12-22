@@ -1,5 +1,4 @@
-from fastapi import HTTPException, status
-from typing import Any
+from fastapi import HTTPException, status, FastAPI
 from multi_agent_workflow.crewai_crew.crew import MultiAgentWorkflow as AgentsWorkflow
 
 
@@ -16,9 +15,32 @@ def workflow_orchestrator(inputs: str):
     except Exception as ex:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Unexpected Error Handling: {ex}")
 
+from models.message_model import MessageBase, Role
+
+
+app = FastAPI()
+
+@app.get("/", status_code=status.HTTP_200_OK)
+def hello():
+    return {"hello": "world"}
+
+@app.post("/send-message", response_model=MessageBase, status_code=status.HTTP_201_CREATED)
+def send_msg(msg: MessageBase):
+    result_obj = workflow_orchestrator(inputs=msg.content)
+    result = MessageBase(
+        role=Role.ASSISTANT.value,
+        content=result_obj
+    )
+    return result
 
 
 if __name__ == "__main__":
 
-    input = ""
-    result = workflow_orchestrator(inputs=input)
+    import uvicorn
+    print("RUNNING UVICORN")
+    uvicorn.run(
+        "multi_agent_orchestrator:app",
+        host="0.0.0.0",
+        port=8888,
+        reload=True
+    )
