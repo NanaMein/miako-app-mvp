@@ -65,3 +65,5 @@ task_report1.md
 task_report2.md
 # Adding gitignore rules for crewai configuration files
 multi_agent_workflow/config/*.yaml
+tasks.yaml
+agent.yaml
