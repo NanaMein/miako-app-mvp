@@ -26,18 +26,59 @@ def workflow_orchestrator(inputs: Any):
 
 app = FastAPI()
 
-@app.get("/", status_code=status.HTTP_200_OK)
-def hello():
-    return {"hello": "world"}
 
-@app.post("/send-message", response_model=MessageBase, status_code=status.HTTP_201_CREATED)
-def send_msg(msg: MessageBase):
-    result_obj = workflow_orchestrator(inputs=msg.content)
-    result = MessageBase(
-        role=Role.ASSISTANT.value,
-        content=result_obj
+
+async def list_all_conversations(
+        session: AsyncSession,
+        offset: int = 0,
+        limit: int = 100
+    ):
+    statement = select(Message).offset(offset).limit(limit)
+    result = await session.execute(statement=statement)
+    messages = result.scalars().all()
+
+    return [
+        {"role": msg.role, "content":msg.content, "time_stamp":str(msg.date_timestamp) }
+        for msg in messages
+    ]
+
+@app.post("/v1/send-message", response_model=MessageBase, status_code=status.HTTP_201_CREATED)
+async def send_async_msg_v1(payload: MessageBase, session: AsyncSession = Depends(get_session)):
+
+    if payload.role != Role.USER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User should be used only")
+    history = await list_all_conversations(session=session)
+
+    crew_input = {
+        "history": history,
+        "user_input": payload.content
+    }
+    crew_output = workflow_orchestrator(inputs=crew_input)
+
+
+    user_msg = Message(
+        role=Role.USER,
+        content=payload.content
     )
-    return result
+    session.add(user_msg)
+
+    asst_msg = Message(
+        role=Role.ASSISTANT,
+        content=crew_output
+    )
+    session.add(asst_msg)
+
+    await session.commit()
+    await session.refresh(user_msg)
+    await session.refresh(asst_msg)
+    return asst_msg
+
+
+
+@app.delete("/clear-message", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_message(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(delete(Message))
+    await session.commit()
 
 
 if __name__ == "__main__":
