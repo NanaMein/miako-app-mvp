@@ -1,5 +1,6 @@
 from typing import Optional, Any
 from fastapi import HTTPException, status, FastAPI
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from models.message_model import MessageBase, Role, Message
 from databases.database import get_session
@@ -53,7 +54,7 @@ async def send_async_msg_v1(payload: MessageBase, session: AsyncSession = Depend
         "history": history,
         "user_input": payload.content
     }
-    crew_output = workflow_orchestrator(inputs=crew_input)
+    crew_output = await run_in_threadpool(workflow_orchestrator, inputs=crew_input)
 
 
     user_msg = Message(
