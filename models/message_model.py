@@ -1,14 +1,8 @@
 from typing import Optional
-from enum import Enum
 from datetime import datetime, timezone
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
 from sqlalchemy import Column, DateTime
 from schemas.message_schema import MessageBaseSchema
-
-
-
-
-
 
 
 
