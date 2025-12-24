@@ -3,16 +3,16 @@ from enum import Enum
 from datetime import datetime, timezone
 from sqlmodel import SQLModel, Field
 from sqlalchemy import Column, DateTime
+from schemas.message_schema import MessageBaseSchema
 
-class Role(str, Enum):
-    USER = "user"
-    ASSISTANT = "assistant"
 
-class MessageBase(SQLModel):
-    role: Role = Role.USER
-    content: str
 
-class Message(MessageBase, table=True):
+
+
+
+
+
+class Message(MessageBaseSchema, table=True):
 
     id: Optional[int] = Field(primary_key=True, default=None)
 
