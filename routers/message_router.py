@@ -81,5 +81,9 @@ async def send_message(payload: MessageBaseSchema,session: AsyncSession = Depend
             detail=f"Error POST: {ex}"
         )
 
-
+from sqlmodel import delete
+@router.delete("/clear", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_list(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(delete(Message))
+    await session.commit()
 
