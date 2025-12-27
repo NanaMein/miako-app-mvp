@@ -25,7 +25,7 @@ class StatesTemporarily(BaseModel):
 class ChatbotStates(BaseModel):
     id: Optional[int] = Field(description="The identifier that separates from other id", default=None)
     input_message: str = Field(description="User\'s input message", default="")
-    experimental_input_file: Any = Field(description="Experimental object carrier", default=None)
+    experimental_input_file: Optional[ChatCompletionUserMessageParam] = Field(description="Experimental object carrier", default=None)
 
 class ChatbotWorkflow(Flow[ChatbotStates]):
 
@@ -39,10 +39,10 @@ class ChatbotWorkflow(Flow[ChatbotStates]):
 
     @listen(start_with_user_message)
     def chatbot_message(self, user_prompt):
-        groq_output = self.groq_client_old_1(user_prompt=user_prompt)
+        groq_output = self.groq(user_prompt=user_prompt)
         return groq_output
 
-    def groq_client_old_1(self,
+    def groq(self,
             user_prompt: ChatCompletionUserMessageParam,
             system_prompt: Optional[ChatCompletionSystemMessageParam] = None
     ) -> str:
@@ -70,17 +70,6 @@ class ChatbotWorkflow(Flow[ChatbotStates]):
 
 chat_bot = ChatbotWorkflow()
 
-def chatbot_kickoff(input_message: str):
-    try:
-        inputs = {
-            "input_message":input_message
-        }
-        result = chat_bot.kickoff(inputs=inputs)
-        print(type(result))
-        return result
-    except Exception as ex:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Error in chatbot_kickoff: {ex}")
-
 
 test = FastAPI()
 
@@ -98,7 +87,6 @@ async def start_with_something(payload: UserPrompt):
         inputs = {
             "experimental_input_file":user_completions_testing
         }
-        # content = await run_in_threadpool(chatbot_kickoff, payload.content)
         content = await run_in_threadpool(chat_bot.kickoff, inputs=inputs)
 
         return ChatCompletionAssistantMessageParam(role="assistant",content=content)
