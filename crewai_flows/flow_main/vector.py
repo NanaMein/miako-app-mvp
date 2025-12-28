@@ -21,7 +21,7 @@ class MilvusVectorStoreClass:
         self.master_lock = Lock()
         self.user_locks = defaultdict(Lock)
         # self.collection_name: str = f"Collection_Name_{self.user_id.strip()}_2025"
-        self.name: Optional[str] = None
+        # self.name: Optional[str] = None
 
     def _vector_store(self, collection_name: str):
         bm25_function = BM25BuiltInFunction(
@@ -40,7 +40,7 @@ class MilvusVectorStoreClass:
         vector_store = MilvusVectorStore(
             uri=os.getenv('CLIENT_URI'),
             token=os.getenv('CLIENT_TOKEN'),
-            collection_name=self.name,
+            collection_name=collection_name,
             dim=1536,
             embedding_field='embeddings',
             enable_sparse=True,
@@ -64,13 +64,21 @@ class MilvusVectorStoreClass:
         return client
 
     def user_id_to_collection_name(self, user_id: str):
-        self.name = f"Collection_Of_{user_id.strip()}_2025_2026"
+        return f"Collection_Of_{user_id.strip()}_2025_2026"
+
+    def is_collection_name_exist(self, collection_name: str ,client: MilvusClient) -> bool:
+        return client.has_collection( collection_name=collection_name )
+
+    def alter_if_collection_name_not_exist(self,collection_name: str, client: MilvusClient):
+        client.alter_collection_properties(
+            collection_name=collection_name,
+            properties={"collection.ttl.seconds": 1296000}  # 15 days conversion
+        )
 
     def get_vector_chat_history(self, user_id: str):
         existing_cache = self.cache.get(user_id)
         if existing_cache is not None:
             return existing_cache
-
 
         with self.master_lock:
             specific_lock = self.user_locks[user_id]
@@ -80,23 +88,26 @@ class MilvusVectorStoreClass:
 
             if existing_cache is not None:
                 return existing_cache
+
             try:
 
-                self.user_id_to_collection_name(user_id=user_id)
+                collection_name = self.user_id_to_collection_name(user_id=user_id)
 
                 client = self._milvus_client()
 
-                existing_collection = client.has_collection(
-                    collection_name=self.name
+                existing_collection = self.is_collection_name_exist(
+                    collection_name=collection_name,
+                    client=client
                 )
 
-                vector_store = self._vector_store(user_id)
+                vector_store = self._vector_store(collection_name=collection_name)
 
                 if not existing_collection:
-                    client.alter_collection_properties(
-                        collection_name=self.name,
-                        properties={"collection.ttl.seconds": 1296000} #15 days conversion
+                    self.alter_if_collection_name_not_exist(
+                        collection_name=collection_name,
+                        client=client
                     )
+
                 self.cache.expire()
                 self.cache[user_id] = vector_store
                 return self.cache[user_id]
