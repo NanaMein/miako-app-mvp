@@ -1,3 +1,4 @@
+from typing import Optional
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction
 from dotenv import load_dotenv
@@ -20,8 +21,93 @@ class MilvusVectorStoreClass:
         self.master_lock = Lock()
         self.user_locks = defaultdict(Lock)
         # self.collection_name: str = f"Collection_Name_{self.user_id.strip()}_2025"
+        self.name: Optional[str] = None
+
+    def _vector_store(self, collection_name: str):
+        bm25_function = BM25BuiltInFunction(
+            analyzer_params={
+                "tokenizer": "multilingual",  # Try 'multilingual' for better script handling
+                "filter": [
+                    "lowercase",
+                    {"type": "length", "max": 40},
+                ],
+            },
+            enable_match=True,
+            input_field_names=["text"],  # The source field for BM25
+            output_field_names=["sparse_embeddings"]  # Where the sparse vector goes
+        )
+
+        vector_store = MilvusVectorStore(
+            uri=os.getenv('CLIENT_URI'),
+            token=os.getenv('CLIENT_TOKEN'),
+            collection_name=self.name,
+            dim=1536,
+            embedding_field='embeddings',
+            enable_sparse=True,
+            enable_dense=True,
+            overwrite=False,  # CHANGE IT FOR DEVELOPMENT STAGE ONLY
+            # sparse_embedding_function=BGEM3SparseEmbeddingFunction(),
+            sparse_embedding_function=bm25_function,
+            search_config={"nprobe": 60},
+            similarity_metric="IP",
+            consistency_level="Session",
+            hybrid_ranker="RRFRanker",
+            hybrid_ranker_params={"k": 80},
+        )
+        return vector_store
+
+    def _milvus_client(self) -> MilvusClient:
+        client = MilvusClient(
+            uri=os.getenv('CLIENT_URI'),
+            token=os.getenv('CLIENT_TOKEN')
+        )
+        return client
+
+    def user_id_to_collection_name(self, user_id: str):
+        self.name = f"Collection_Of_{user_id.strip()}_2025_2026"
 
     def get_vector_chat_history(self, user_id: str):
+        existing_cache = self.cache.get(user_id)
+        if existing_cache is not None:
+            return existing_cache
+
+
+        with self.master_lock:
+            specific_lock = self.user_locks[user_id]
+
+        with specific_lock:
+            existing_cache = self.cache.get(user_id)
+
+            if existing_cache is not None:
+                return existing_cache
+            try:
+
+                self.user_id_to_collection_name(user_id=user_id)
+
+                client = self._milvus_client()
+
+                existing_collection = client.has_collection(
+                    collection_name=self.name
+                )
+
+                vector_store = self._vector_store(user_id)
+
+                if not existing_collection:
+                    client.alter_collection_properties(
+                        collection_name=self.name,
+                        properties={"collection.ttl.seconds": 1296000} #15 days conversion
+                    )
+                self.cache.expire()
+                self.cache[user_id] = vector_store
+                return self.cache[user_id]
+            except Exception as ex:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error in cache vector: {ex}"
+                )
+
+
+    def get_vector_chat_history_original(self, user_id: str):
         existing_cache = self.cache.get(user_id)
         if existing_cache is not None:
             return existing_cache
