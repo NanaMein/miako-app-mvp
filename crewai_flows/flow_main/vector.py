@@ -64,7 +64,9 @@ class MilvusVectorStoreClass:
         return client
 
     def user_id_to_collection_name(self, user_id: str):
-        return f"Collection_Of_{user_id.strip()}_2025_2026"
+        # stripped_user_id = user_id.strip()
+        len_of_16_str = user_id.strip()[:16]
+        return f"Collection_Of_{len_of_16_str}_2025_2026"
 
     def is_collection_name_exist(self, collection_name: str ,client: MilvusClient) -> bool:
         return client.has_collection( collection_name=collection_name )
