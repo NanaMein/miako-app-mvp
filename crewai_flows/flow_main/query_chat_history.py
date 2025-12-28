@@ -14,7 +14,7 @@ load_dotenv()
 
 milvus = MilvusVectorStoreClass()
 
-def embed_model_cohere(input_type: str = ""):
+def embed_model_cohere(input_type: str = "") -> CohereEmbedding:
 
     if input_type == "doc":
         _input_type = "search_document"
@@ -44,7 +44,7 @@ def get_query_engine(vector_store: MilvusVectorStore, embed_model: BaseEmbedding
     )
     return query_engine
 
-def chat_conversation_history(user_id: str, input_message: str):
+def chat_conversation_history(user_id: str, input_message: str) -> str:
 
     vector_store = milvus.get_vector_chat_history(user_id=user_id)
 
