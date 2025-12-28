@@ -111,10 +111,16 @@ class MilvusVectorStoreClass:
                 self.cache.expire()
                 self.cache[user_id] = vector_store
                 return self.cache[user_id]
+            except (MilvusException, AioRpcError) as ma:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Error in Milvus: {ma}"
+                )
+
             except Exception as ex:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Error in cache vector: {ex}"
+                    detail=f"Unexpected Error: {ex}"
                 )
 
 
