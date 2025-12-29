@@ -146,7 +146,7 @@ class MilvusVectorStoreClass:
                     detail=f"Zilliz vector store error: {ex}"
                 )
 
-class MilvusVectorStoreClass:
+class MilvusVectorStoreClassOldVersion:
     def __init__(self):
         self.cache = TTLCache(maxsize=100, ttl=250)
         self.master_lock = Lock()
