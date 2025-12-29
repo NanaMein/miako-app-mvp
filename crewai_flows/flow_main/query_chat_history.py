@@ -62,3 +62,50 @@ def chat_conversation_history(user_id: str, input_message: str) -> str:
 
     return chat_result.response
 
+
+from llama_index.core.prompts import PromptTemplate
+
+TEMPLATE="""
+    <Node_start>
+    <Node_text>{{node_text}}</Node_text>
+    <Node_metadata>{{node_metadata}}</Node_metadata>
+    <Node_score>{{node_score}}<Node_score>
+    </Node_end>
+    \n\n
+"""
+
+PROMPT_TEMPLATE = PromptTemplate(TEMPLATE)
+
+
+def get_query_retriever(vector_store: MilvusVectorStore, embed_model: CohereEmbedding):
+    index = VectorStoreIndex.from_vector_store(
+        vector_store=vector_store, embed_model=embed_model
+    )
+    retriever = index.as_retriever(
+        vector_store_query_mode="hybrid", similarity_top_k=5
+    )
+    return retriever
+
+
+def chat_conversation_raw_history(user_id: str, input_message: str):
+
+    vector_store = milvus.get_vector_chat_history(user_id=user_id)
+
+    embed_model = embed_model_cohere("doc")
+
+    retriever = get_query_retriever(
+        vector_store=vector_store,
+        embed_model=embed_model
+    )
+
+    nodes_with_score = retriever.retrieve(input_message)
+
+    context_str=""
+
+    for node in nodes_with_score:
+        rendered_template = PROMPT_TEMPLATE.format(
+            node_text=node.text,
+            node_metadata=node.metadata,
+            node_score=node.score
+        )
+        context_str = context_str + rendered_template
