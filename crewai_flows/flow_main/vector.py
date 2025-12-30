@@ -11,7 +11,8 @@ import os
 from grpc.aio import AioRpcError
 from collections import defaultdict
 from threading import Lock
-
+import time
+import asyncio
 load_dotenv()
 
 
@@ -332,4 +333,136 @@ class MilvusVectorStoreClassOldVersion:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Error in cache vector: {ex}"
+                )
+
+class MilvusVectorStoreClassAsync:
+
+    def __init__(self):
+        self.cache = LRUCache(maxsize=100)
+        self.master_lock = asyncio.Lock()
+        self.user_locks = {}
+        self._bgem3function = None
+
+    @property
+    def bgem3function(self) -> BGEM3SparseEmbeddingFunction:
+        if self._bgem3function is None:
+            self._bgem3function = BGEM3SparseEmbeddingFunction()
+        return self._bgem3function
+
+    def user_id_to_collection_name(self, user_id: str) -> str:
+        len_of_16_str = user_id.strip()[:16]
+        return f"Collection_Of_{len_of_16_str}_2025_2026"
+
+    def _milvus_client(self) -> MilvusClient:
+        client = MilvusClient(
+            uri=os.getenv('CLIENT_URI'),
+            token=os.getenv('CLIENT_TOKEN')
+        )
+        return client
+
+    def _vector_store_with_bm25(self, collection_name: str) -> MilvusVectorStore:
+        try:
+            bm25_function = BM25BuiltInFunction(
+                analyzer_params={
+                    "tokenizer": "multilingual",  # Try 'multilingual' for better script handling
+                    "filter": [
+                        "lowercase",
+                        {"type": "length", "max": 40},
+                    ],
+                },
+                enable_match=True,
+                input_field_names=["text"],  # The source field for BM25
+                output_field_names=["sparse_embeddings"]  # Where the sparse vector goes
+            )
+
+            vector_store = MilvusVectorStore(
+                uri=os.getenv('CLIENT_URI'),
+                token=os.getenv('CLIENT_TOKEN'),
+                collection_name=collection_name,
+                dim=1536,
+                embedding_field='embeddings',
+                enable_sparse=True,
+                enable_dense=True,
+                overwrite=False,  # CHANGE IT FOR DEVELOPMENT STAGE ONLY
+                # sparse_embedding_function=BGEM3SparseEmbeddingFunction(),
+                sparse_embedding_function=bm25_function,
+                search_config={"nprobe": 60},
+                similarity_metric="IP",
+                consistency_level="Session",
+                hybrid_ranker="RRFRanker",
+                hybrid_ranker_params={"k": 80},
+            )
+            return vector_store
+        except Exception as x:
+            raise x
+
+    def _vector_store_with_bgem3(self, collection_name: str) -> MilvusVectorStore:
+        try:
+            vector_store = MilvusVectorStore(
+                uri=os.getenv('CLIENT_URI'),
+                token=os.getenv('CLIENT_TOKEN'),
+                collection_name=collection_name,
+                dim=1536,
+                embedding_field='embeddings',
+                enable_sparse=True,
+                enable_dense=True,
+                overwrite=False,  # CHANGE IT FOR DEVELOPMENT STAGE ONLY
+                sparse_embedding_function=self.bgem3function,
+                search_config={"nprobe": 60},
+                similarity_metric="IP",
+                consistency_level="Session",
+                hybrid_ranker="RRFRanker",
+                hybrid_ranker_params={"k": 80}
+            )
+            return vector_store
+        except Exception as x:
+            raise x
+
+    def is_collection_name_exist(self, collection_name: str ,client: MilvusClient) -> bool:
+        return client.has_collection( collection_name=collection_name )
+
+    def alter_if_collection_name_not_exist(self,collection_name: str, client: MilvusClient) -> None:
+        client.alter_collection_properties(
+            collection_name=collection_name,
+            properties={"collection.ttl.seconds": 1296000}  # 15 days conversion
+        )
+
+    async def get_vector_chat_history(self, user_id: str) -> MilvusVectorStore:
+        vector_store: Optional[MilvusVectorStore] = self.cache.get(user_id)
+
+        if vector_store:
+            return vector_store
+
+        async with self.master_lock:
+            if user_id not in self.user_locks:
+                self.user_locks[user_id] = asyncio.Lock()
+            specific_lock = self.user_locks[user_id]
+
+        async with specific_lock:
+            try:
+                vector_store = self.cache.get(user_id)
+
+                if vector_store:
+                    return vector_store
+
+                collection_name = self.user_id_to_collection_name(user_id)
+
+                client = self._milvus_client()
+
+                existing_collection = self.is_collection_name_exist(collection_name, client)
+
+                new_vector_store = self._vector_store_with_bgem3(collection_name)
+
+                if not existing_collection:
+                    self.alter_if_collection_name_not_exist(collection_name, client)
+
+                self.cache[user_id] = new_vector_store
+                end = time.perf_counter()
+                print(f"Time in Overall function to get new vector: {end - start}")
+
+                return new_vector_store
+            except Exception as ex:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Zilliz vector store error: {ex}"
                 )
