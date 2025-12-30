@@ -427,7 +427,7 @@ class MilvusVectorStoreClassAsync:
             properties={"collection.ttl.seconds": 1296000}  # 15 days conversion
         )
 
-    async def get_vector_chat_history(self, user_id: str) -> MilvusVectorStore:
+    async def get_vector_store_chat_history(self, user_id: str) -> MilvusVectorStore:
         vector_store: Optional[MilvusVectorStore] = self.cache.get(user_id)
 
         if vector_store:
@@ -457,8 +457,6 @@ class MilvusVectorStoreClassAsync:
                     self.alter_if_collection_name_not_exist(collection_name, client)
 
                 self.cache[user_id] = new_vector_store
-                end = time.perf_counter()
-                print(f"Time in Overall function to get new vector: {end - start}")
 
                 return new_vector_store
             except Exception as ex:
