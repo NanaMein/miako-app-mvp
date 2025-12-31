@@ -4,7 +4,7 @@ from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction, BGEM3Sp
 from dotenv import load_dotenv
 from cachetools import TTLCache, LRUCache
 from llama_index.core import VectorStoreIndex, StorageContext
-from pymilvus import MilvusException, MilvusClient
+from pymilvus import MilvusException, MilvusClient, AsyncMilvusClient
 from fastapi import HTTPException, status
 import grpc
 import os
@@ -353,8 +353,8 @@ class MilvusVectorStoreClassAsync:
         len_of_16_str = user_id.strip()[:16]
         return f"Collection_Of_{len_of_16_str}_2025_2026"
 
-    def _milvus_client(self) -> MilvusClient:
-        client = MilvusClient(
+    async def _milvus_client(self) -> AsyncMilvusClient:
+        client = AsyncMilvusClient(
             uri=os.getenv('CLIENT_URI'),
             token=os.getenv('CLIENT_TOKEN')
         )
@@ -418,11 +418,11 @@ class MilvusVectorStoreClassAsync:
         except Exception as x:
             raise x
 
-    def is_collection_name_exist(self, collection_name: str ,client: MilvusClient) -> bool:
-        return client.has_collection( collection_name=collection_name )
+    async def is_collection_name_exist(self, collection_name: str ,client: AsyncMilvusClient) -> bool:
+        return await client.has_collection(collection_name=collection_name)
 
-    def alter_if_collection_name_not_exist(self,collection_name: str, client: MilvusClient) -> None:
-        client.alter_collection_properties(
+    async def alter_if_collection_name_not_exist(self,collection_name: str, client: AsyncMilvusClient) -> None:
+        await client.alter_collection_properties(
             collection_name=collection_name,
             properties={"collection.ttl.seconds": 1296000}  # 15 days conversion
         )
@@ -447,14 +447,14 @@ class MilvusVectorStoreClassAsync:
 
                 collection_name = self.user_id_to_collection_name(user_id)
 
-                client = self._milvus_client()
+                client = await self._milvus_client()
 
-                existing_collection = self.is_collection_name_exist(collection_name, client)
+                existing_collection = await self.is_collection_name_exist(collection_name, client)
 
                 new_vector_store = self._vector_store_with_bgem3(collection_name)
 
                 if not existing_collection:
-                    self.alter_if_collection_name_not_exist(collection_name, client)
+                    await self.alter_if_collection_name_not_exist(collection_name, client)
 
                 self.cache[user_id] = new_vector_store
 
