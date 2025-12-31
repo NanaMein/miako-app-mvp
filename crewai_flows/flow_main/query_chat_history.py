@@ -1,71 +1,19 @@
 import os
-from llama_index.core.base.base_query_engine import BaseQueryEngine
-from llama_index.core.base.embeddings.base import BaseEmbedding
-from llama_index.vector_stores.milvus import MilvusVectorStore
-from llama_index.llms.groq import Groq
+from llama_index.core import Document
+from llama_index.core.base.base_retriever import BaseRetriever
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import VectorStoreIndex
 from dotenv import load_dotenv
-from crewai_flows.flow_main.vector import MilvusVectorStoreClass
+from crewai_flows.flow_main.vector import MilvusVectorStoreClassAsync
+from llama_index.core.prompts import PromptTemplate
 
 
 load_dotenv()
 
-milvus = MilvusVectorStoreClass()
 
-def embed_model_cohere(input_type: str = "") -> CohereEmbedding:
-
-    if input_type == "doc":
-        _input_type = "search_document"
-    else:
-        _input_type="search_query"
-
-    embed_model = CohereEmbedding(
-        model_name="embed-v4.0",
-        api_key=os.getenv('CLIENT_COHERE_API_KEY'),
-        input_type=_input_type
-    )
-    return embed_model
-
-def llm_groq():
-    return Groq(
-        model="meta-llama/llama-4-scout-17b-16e-instruct",
-        api_key=os.getenv("CLIENT_GROQ_API_1"),
-        temperature=0.5
-    )
-
-def get_query_engine(vector_store: MilvusVectorStore, embed_model: BaseEmbedding, llm: Groq) -> BaseQueryEngine:
-    index = VectorStoreIndex.from_vector_store(
-        vector_store=vector_store, embed_model=embed_model
-    )
-    query_engine = index.as_query_engine(
-        vector_store_query_mode="hybrid", similarity_top_k=5, llm=llm
-    )
-    return query_engine
-
-def chat_conversation_history(user_id: str, input_message: str) -> str:
-
-    vector_store = milvus.get_vector_chat_history(user_id=user_id)
-
-    embed_model = embed_model_cohere()
-
-    llm = llm_groq()
-
-    query_engine = get_query_engine(
-        vector_store=vector_store,
-        embed_model=embed_model,
-        llm=llm
-    )
-
-    chat_result = query_engine.query(input_message)
-
-    return chat_result.response
-
-
-from llama_index.core.prompts import PromptTemplate
-
-TEMPLATE="""
+NODE_FORMAT_TEMPLATE="""
     <Node_start>
     <Node_text>{{node_text}}</Node_text>
     <Node_metadata>{{node_metadata}}</Node_metadata>
@@ -73,39 +21,116 @@ TEMPLATE="""
     </Node_end>
     \n\n
 """
+MESSAGE_FORMAT_TEMPLATE = """
+    <conversation_turn>\n
+        <user_turn>\n
+            {{user_message}}\n
+        </user_turn>\n
+        <assistant_turn>\n
+            {{assistant_message}}\n
+        </assistant_turn>\n
 
-PROMPT_TEMPLATE = PromptTemplate(TEMPLATE)
+    </conversation_turn>\n \n---/---/---\n"""
+
+NODE_TEMPLATE = PromptTemplate(NODE_FORMAT_TEMPLATE)
+MESSAGE_TEMPLATE = PromptTemplate(MESSAGE_FORMAT_TEMPLATE)
 
 
-def get_query_retriever(vector_store: MilvusVectorStore, embed_model: CohereEmbedding):
-    index = VectorStoreIndex.from_vector_store(
-        vector_store=vector_store, embed_model=embed_model
-    )
-    retriever = index.as_retriever(
-        vector_store_query_mode="hybrid", similarity_top_k=5
-    )
-    return retriever
+
+class ConversationMemoryStore:
+
+    def __init__(self,node_template=NODE_TEMPLATE, message_template=MESSAGE_TEMPLATE):
+        self._milvus = None
+        self._embed_model_document = None
+        self._embed_model_query = None
+        self.node_template = node_template
+        self.message_template = message_template
+        self.sentence_splitter = SentenceSplitter(chunk_size=360, chunk_overlap=60)
 
 
-def chat_conversation_raw_history(user_id: str, input_message: str):
 
-    vector_store = milvus.get_vector_chat_history(user_id=user_id)
+    @property
+    def milvus(self) -> MilvusVectorStoreClassAsync:
+        if self._milvus is None:
+            self._milvus = MilvusVectorStoreClassAsync()
+        return self._milvus
 
-    embed_model = embed_model_cohere("doc")
+    @property
+    def embed_model_document(self) -> CohereEmbedding:
+        if self._embed_model_document is None:
 
-    retriever = get_query_retriever(
-        vector_store=vector_store,
-        embed_model=embed_model
-    )
+            self._embed_model_document = CohereEmbedding(
+                model_name="embed-v4.0",
+                api_key=os.getenv('CLIENT_COHERE_API_KEY'),
+                input_type="search_document"
+            )
+        return self._embed_model_document
 
-    nodes_with_score = retriever.retrieve(input_message)
+    @property
+    def embed_model_query(self) -> CohereEmbedding:
+        if self._embed_model_query is None:
+            self._embed_model_query = CohereEmbedding(
+                model_name="embed-v4.0",
+                api_key=os.getenv('CLIENT_COHERE_API_KEY'),
+                input_type="search_query"
+            )
+        return self._embed_model_query
 
-    context_str=""
 
-    for node in nodes_with_score:
-        rendered_template = PROMPT_TEMPLATE.format(
-            node_text=node.text,
-            node_metadata=node.metadata,
-            node_score=node.score
+    async def _get_vector(self, user_id:str) -> MilvusVectorStore:
+        return await self.milvus.get_vector_store_chat_history(user_id=user_id)
+
+
+    def _get_retriever(self, vector_store: MilvusVectorStore) -> BaseRetriever:
+
+        index = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store, embed_model=self.embed_model_query, use_async=True
         )
-        context_str = context_str + rendered_template
+        retriever = index.as_retriever(
+            vector_store_query_mode="hybrid", similarity_top_k=5
+        )
+        return retriever
+
+    async def get_memory(self, user_id: str, message: str) -> str:
+        vector_store = await self._get_vector(user_id)
+        retriever = self._get_retriever(vector_store)
+        node_with_score = await retriever.aretrieve(message)
+
+        retrieved_context = ""
+
+        for node in node_with_score:
+            template_with_node = self.node_template.format(
+                node_text=node.text,
+                node_metadata=node.metadata,
+                node_score=node.score
+            )
+            retrieved_context += template_with_node
+
+        return retrieved_context
+
+    async def add_memory(
+            self, user_id:str,
+            user_message: str = "",
+            assistant_message: str = "",
+    ) -> bool:
+
+        rendered_template = self.message_template.format(
+            user_message=user_message,
+            assistant_message=assistant_message
+        )
+        docs = [Document(text_resource=rendered_template)]
+
+
+        vector_store = await self._get_vector(user_id=user_id)
+        index = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store, embed_model=self.embed_model_document, use_async=True
+        )
+
+        try:
+            nodes = await self.sentence_splitter.aget_nodes_from_documents(docs)
+
+            await index.ainsert_nodes(nodes=nodes)
+            return True
+        except Exception as ex:
+            print(f"error: {ex}")
+            return False
