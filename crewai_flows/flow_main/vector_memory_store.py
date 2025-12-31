@@ -118,7 +118,7 @@ class ConversationMemoryStore:
             user_message=user_message,
             assistant_message=assistant_message
         )
-        docs = [Document(text_resource=rendered_template)]
+        docs = [Document(text=rendered_template)]
 
 
         vector_store = await self._get_vector(user_id=user_id)
