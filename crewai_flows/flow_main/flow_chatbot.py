@@ -206,7 +206,7 @@ async def flow_send(payload: MessageBaseSchema, session: AsyncSession = Depends(
             "async_session": session
         }
         output_flow = await flow_start.kickoff_async(inputs=payload_input)
-        assistant_message = {"role":Role.ASSISTANT,"content":output_flow}
+        assistant_message = {"role":Role.ASSISTANT.value,"content":output_flow}
         return assistant_message
     except Exception as ex:
         raise HTTPException(
