@@ -14,6 +14,7 @@ from models.message_model import Message
 from schemas.message_schema import MessageBaseSchema, Role
 from sqlalchemy.ext.asyncio import AsyncSession
 from crewai_flows.flow_main.vector_memory_store import ConversationMemoryStore
+from sample_logger import logger
 
 load_dotenv()
 
@@ -69,6 +70,7 @@ class FlowMainWorkflow(Flow[FlowMainStates]):
     def __init__(self, **kwargs: Any):
         self._memory_store = None
         self._async_groq = None
+        self.logger = logger.success("Instantiated Flow main")
         super().__init__(**kwargs)
 
 
