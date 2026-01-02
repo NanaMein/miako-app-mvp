@@ -1,97 +1,41 @@
 import os
 from dotenv import load_dotenv
-from typing import Optional, Any
-from crewai.flow.flow import Flow, listen, start
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel, Field
-from groq import Groq
-from groq.types.chat import (
-    ChatCompletionUserMessageParam,
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionSystemMessageParam,
-    ChatCompletion
-)
-from fastapi import FastAPI, HTTPException, status
+from sqlmodel import select, desc, delete
+from models.message_model import Message
+from schemas.message_schema import MessageBaseSchema, Role
+from databases.database import get_session
+from crewai_flows.flow_main.flow_chatbot import FlowMainWorkflow
+from fastapi import FastAPI, HTTPException, status, Depends
 
 load_dotenv()
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-class StatesTemporarily(BaseModel):
-    input_message: str = ""
-    experimental_input_file: Any = None
-
-class ChatbotStates(BaseModel):
-    id: Optional[int] = Field(description="The identifier that separates from other id", default=None)
-    input_message: str = Field(description="User\'s input message", default="")
-    experimental_input_file: Optional[ChatCompletionUserMessageParam] = Field(description="Experimental object carrier", default=None)
-
-class ChatbotWorkflow(Flow[ChatbotStates]):
-
-    @start()
-    def start_with_user_message(self):
-        # input_message = ChatCompletionUserMessageParam(
-        #     role="user", content=self.state.input_message
-        # )
-        # return input_message
-        return self.state.experimental_input_file
-
-    @listen(start_with_user_message)
-    def chatbot_message(self, user_prompt):
-        groq_output = self.groq(user_prompt=user_prompt)
-        return groq_output
-
-    def groq(self,
-            user_prompt: ChatCompletionUserMessageParam,
-            system_prompt: Optional[ChatCompletionSystemMessageParam] = None
-    ) -> str:
-        try:
-            if not system_prompt:
-                messages = [user_prompt]
-            else:
-                messages = [system_prompt, user_prompt]
-
-            completion = client.chat.completions.create(
-                model="meta-llama/llama-4-scout-17b-16e-instruct",
-                messages=messages,
-                temperature=0.7,
-                max_completion_tokens=8192,
-                top_p=1,
-                stream=False,
-                stop=None
-            )
-
-            print(completion.choices[0].message)
-            output = completion.choices[0].message
-            return output.content
-        except Exception as ex:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error in groq_client: {ex}")
-
-chat_bot = ChatbotWorkflow()
+flow_start = FlowMainWorkflow()
+app = FastAPI()
 
 
-test = FastAPI()
 
-class UserPrompt(BaseModel):
-    role: str = "user"
-    content: str
-
-
-@test.post("/v0")
-async def start_with_something(payload: UserPrompt):
+@app.post("/flow-send", response_model=MessageBaseSchema)
+async def flow_send(payload: MessageBaseSchema, session: AsyncSession = Depends(get_session)):
     try:
-        user_completions_testing = ChatCompletionUserMessageParam(
-            role=payload.role, content=payload.content
-        )
-        inputs = {
-            "experimental_input_file":user_completions_testing
+        payload_input = {
+            "input_message":payload.content,
+            "input_user_id":payload.role,
+            "async_session": session
         }
-        content = await run_in_threadpool(chat_bot.kickoff, inputs=inputs)
-
-        return ChatCompletionAssistantMessageParam(role="assistant",content=content)
+        output_flow = await flow_start.kickoff_async(inputs=payload_input)
+        assistant_message = {"role":Role.ASSISTANT.value,"content":output_flow}
+        return assistant_message
     except Exception as ex:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Error occurred: {ex}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Error error error: {ex}"
+        )
+
+
+@app.delete("/clear-message", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_message(session: AsyncSession = Depends(get_session)):
+    await session.execute(delete(Message))
+    await session.commit()
 
 
 if __name__ == "__main__":
@@ -99,7 +43,7 @@ if __name__ == "__main__":
     import uvicorn
     print("RUNNING UVICORN")
     uvicorn.run(
-        "main_flow:test",
+        "flow_chatbot:app",
         host="0.0.0.0",
         port=8888,
         reload=True
