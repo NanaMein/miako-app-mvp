@@ -3,7 +3,6 @@ from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction, BGEM3SparseEmbeddingFunction
 from dotenv import load_dotenv
 from cachetools import TTLCache, LRUCache
-from llama_index.core import VectorStoreIndex, StorageContext
 from pymilvus import MilvusException, MilvusClient, AsyncMilvusClient
 from fastapi import HTTPException, status
 import grpc
@@ -13,6 +12,7 @@ from collections import defaultdict
 from threading import Lock
 import time
 import asyncio
+from sample_logger import logger
 load_dotenv()
 
 
@@ -346,7 +346,9 @@ class MilvusVectorStoreClassAsync:
     @property
     def bgem3function(self) -> BGEM3SparseEmbeddingFunction:
         if self._bgem3function is None:
+            logger.info("Starting to instantiate BGEM3SparseEmbeddingFunction...")
             self._bgem3function = BGEM3SparseEmbeddingFunction()
+            logger.success("BGEM3SparseEmbeddingFunction is instantiated!")
         return self._bgem3function
 
     def user_id_to_collection_name(self, user_id: str) -> str:
@@ -358,6 +360,7 @@ class MilvusVectorStoreClassAsync:
             uri=os.getenv('CLIENT_URI'),
             token=os.getenv('CLIENT_TOKEN')
         )
+        logger.success("Successfully make milvus client connected to server")
         return client
 
     def _vector_store_with_bm25(self, collection_name: str) -> MilvusVectorStore:
@@ -398,6 +401,7 @@ class MilvusVectorStoreClassAsync:
 
     def _vector_store_with_bgem3(self, collection_name: str) -> MilvusVectorStore:
         try:
+            logger.info("Starting to make connection with Zilliz Cloud vector")
             vector_store = MilvusVectorStore(
                 uri=os.getenv('CLIENT_URI'),
                 token=os.getenv('CLIENT_TOKEN'),
@@ -419,6 +423,7 @@ class MilvusVectorStoreClassAsync:
             raise x
 
     async def is_collection_name_exist(self, collection_name: str ,client: AsyncMilvusClient) -> bool:
+        logger.info("Checking to see if Zilliz cloud has that collection name")
         return await client.has_collection(collection_name=collection_name)
 
     async def alter_if_collection_name_not_exist(self,collection_name: str, client: AsyncMilvusClient) -> None:
@@ -428,9 +433,12 @@ class MilvusVectorStoreClassAsync:
         )
 
     async def get_vector_store_chat_history(self, user_id: str) -> MilvusVectorStore:
+        user_logger = logger.bind(user=user_id)
+
         vector_store: Optional[MilvusVectorStore] = self.cache.get(user_id)
 
         if vector_store:
+            user_logger.success("Fast cache hit for vector store")
             return vector_store
 
         async with self.master_lock:
@@ -440,12 +448,16 @@ class MilvusVectorStoreClassAsync:
 
         async with specific_lock:
             try:
+                user_logger.debug("Initiating Vector connection in Lock...")
                 vector_store = self.cache.get(user_id)
 
                 if vector_store:
+                    user_logger.success("Success vector connection the second time")
                     return vector_store
 
+                user_logger.debug("Started to make new connection to vector and cache it...")
                 collection_name = self.user_id_to_collection_name(user_id)
+                user_logger.info(f"Collection name [{collection_name}] created")
 
                 client = await self._milvus_client()
 
@@ -455,12 +467,15 @@ class MilvusVectorStoreClassAsync:
 
                 if not existing_collection:
                     await self.alter_if_collection_name_not_exist(collection_name, client)
+                    user_logger.success(f"Altered properties for [{collection_name}] for the first time for TTL.")
 
                 self.cache[user_id] = new_vector_store
 
+                user_logger.success("Successfully cached vector store in lock.")
                 return new_vector_store
             except Exception as ex:
+                user_logger.exception(f"Zilliz vector store error: {ex}")
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Zilliz vector store error: {ex}"
+                    detail="Internal server error"
                 )
