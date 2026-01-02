@@ -36,8 +36,8 @@ SYSTEM_PROMPT = """
         context_2 help you understand long-term and short-term memory in chat conversation. """
 prompt_template_format = """        
         ### Contexts:
-        <context_1>{{context_1}}</context_1>
-        <context_2>{{context_2}}</context_2>
+        <context_1>{context_1}</context_1>
+        <context_2>{context_2}</context_2>
         
         ### Expected output:
         With all the context present, you need to focus or answer the latest message of user in context_2.
@@ -110,9 +110,17 @@ class FlowMainWorkflow(Flow[FlowMainStates]):
         messages = result.scalars().all()
         reversed_message = messages[::-1]
         history_context = ""
+
         for msg in reversed_message:
-            role_label = "User" if msg.role == Role.USER else Role.ASSISTANT
-            history_context += f"{role_label}: {msg.content}\n---\n"
+            if msg.role == Role.USER:
+                role_label = Role.USER.value
+
+            elif msg.role == Role.ASSISTANT:
+                role_label = Role.ASSISTANT.value
+
+            else:
+                role_label = "unidentified entity"
+            history_context += f"{role_label}: {msg.content}\n\n--/--/--/--/--\n\n"
 
         self.state.context_2 = history_context
 
@@ -147,12 +155,12 @@ class FlowMainWorkflow(Flow[FlowMainStates]):
     async def add_message_to_database(self, content:str):
 
         user_msg = Message(
-            role=Role.USER,
+            role=Role.USER.value,
             content=self.state.input_message
         )
 
         asst_msg = Message(
-            role=Role.ASSISTANT,
+            role=Role.ASSISTANT.value,
             content=content
         )
 
