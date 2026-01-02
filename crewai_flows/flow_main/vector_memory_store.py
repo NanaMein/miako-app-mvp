@@ -14,12 +14,11 @@ load_dotenv()
 
 
 NODE_FORMAT_TEMPLATE="""
-    <Node_start>
-    <Node_text>{{node_text}}</Node_text>
-    <Node_metadata>{{node_metadata}}</Node_metadata>
-    <Node_score>{{node_score}}<Node_score>
-    </Node_end>
-    \n\n
+    <Node_start>\n
+    <Node_text>{node_text}</Node_text>\n
+    <Node_metadata>{node_metadata}</Node_metadata>\n
+    <Node_score>{node_score}<Node_score>\n
+    </Node_end>\n\n
 """
 MESSAGE_FORMAT_TEMPLATE = """
     <conversation_turn>\n
