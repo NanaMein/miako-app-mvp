@@ -9,6 +9,8 @@ from sqlmodel import SQLModel
 from alembic import context
 
 from models.message_model import Message
+from models.user_model import User
+from models.conversation_model import Conversation
 
 import os
 from dotenv import load_dotenv
