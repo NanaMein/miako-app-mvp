@@ -72,3 +72,5 @@ sample_code.py
 sample_vector_rag.py
 
 crewai_flows/flow_main/logs/
+test_fastapi_main.py
+test_pytest_main.py
