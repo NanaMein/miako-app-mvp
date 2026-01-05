@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Response, Request
 from sqlmodel import select
 from databases.database import get_session, AsyncSession
 from models.user_model import User
@@ -47,4 +47,14 @@ async def login_user(payload: UserLogin, session: AsyncSession = Depends(get_ses
         raise error_401
 
     return user
+
+@router.post("/log-out")
+async def logout_user(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        samesite="lax",
+        secure=True
+    )
+    return {"detail":"Successfully log out your account"}
 
