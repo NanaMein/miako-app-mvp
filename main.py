@@ -5,11 +5,13 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 from routers.message_router import router as message_router
+from routers.auth_router import router as auth_router
 
 load_dotenv()
 
 app = FastAPI()
 app.include_router(message_router)
+app.include_router(auth_router)
 
 class HelloWorld(BaseModel):
     message: Optional[str] = None
