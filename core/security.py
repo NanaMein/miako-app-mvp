@@ -6,6 +6,7 @@ from core.config import settings
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 from fastapi.concurrency import run_in_threadpool
+from fastapi import Request, Response, HTTPException, status
 
 COOKIE_SETTINGS={
     "httponly":True,
@@ -46,17 +47,18 @@ def token_generator(sub: Union[str, Any], token_type: str = "access"):
         to_encode, key=settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
 
-def token_verification(token: str) -> Optional[dict[str, Any]]:
+def token_decoder(token: Optional[str]) -> Optional[dict[str, Any]]:
+    if not token:
+        return None
+
     try:
         payload: dict[str, Any] = jwt.decode(
             token=token,
             key=settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
-        user_id = payload.get("sub")
-        if user_id is None:
-            return None
         return payload
+
     except (JWTError, ExpiredSignatureError, JWTClaimsError):
         return None
 
@@ -79,4 +81,21 @@ def set_refresh_cookie(response: Response, subject: Union[str, Any]):
     refresh_token = create_refresh_token(subject=subject)
     response.set_cookie(key="refresh_token",value=refresh_token, **COOKIE_SETTINGS)
 
+
+def get_current_user_id(request: Request, response: Response):
+
+    token_from_cookie = request.cookies.get("access_token")
+    payload = token_decoder(token=token_from_cookie)
+    if payload:
+        return payload.get("sub")
+
+    get_refresh_token_from_cookie = request.cookies.get("refresh_token")
+    refresh_token_load = token_decoder(token=get_refresh_token_from_cookie)
+
+    if refresh_token_load:
+        subject = refresh_token_load.get("sub")
+        set_access_cookie(response=response, subject=subject)
+        return subject
+
+    return None
 
