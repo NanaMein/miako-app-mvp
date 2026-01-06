@@ -7,7 +7,12 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 from fastapi.concurrency import run_in_threadpool
 
-
+COOKIE_SETTINGS={
+    "httponly":True,
+    "secure":True,
+    "samesite":"lax",
+    "domain":settings.MDOMAIN
+}
 
 ph = PasswordHasher()
 
@@ -64,4 +69,14 @@ def create_access_token(subject: Union[str, Any]) -> str:
 def create_refresh_token(subject: Union[str, Any]) -> str:
     jwt_token = token_generator(sub=subject, token_type="refresh")
     return jwt_token
+
+def set_access_cookie(response: Response, subject: Union[str, Any]):
+    access_token = create_access_token(subject=subject)
+    response.set_cookie(key="access_token",value=access_token, **COOKIE_SETTINGS)
+
+
+def set_refresh_cookie(response: Response, subject: Union[str, Any]):
+    refresh_token = create_refresh_token(subject=subject)
+    response.set_cookie(key="refresh_token",value=refresh_token, **COOKIE_SETTINGS)
+
 
