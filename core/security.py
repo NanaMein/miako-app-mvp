@@ -86,19 +86,27 @@ def get_current_user_id(request: Request, response: Response):
 
     token_from_cookie = request.cookies.get("access_token")
     payload = token_decoder(token=token_from_cookie)
-    if payload:
+
+    if payload and payload.get("type") == "access":
         return payload.get("sub")
 
     get_refresh_token_from_cookie = request.cookies.get("refresh_token")
     refresh_token_load = token_decoder(token=get_refresh_token_from_cookie)
 
-    if refresh_token_load:
+    if refresh_token_load and refresh_token_load.get("type") == "refresh":
         subject = refresh_token_load.get("sub")
         set_access_cookie(response=response, subject=subject)
         return subject
 
-    return None
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated"
+    )
 
 def login_with_access_and_refresh_token(subject: Union[str, Any], response: Response):
     set_access_cookie(response=response, subject=subject)
     set_refresh_cookie(response=response, subject=subject)
+
+def logout_and_delete_cookies(response: Response):
+    response.delete_cookie(key="access_token",**COOKIE_SETTINGS)
+    response.delete_cookie(key="refresh_token",**COOKIE_SETTINGS)
