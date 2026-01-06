@@ -99,3 +99,6 @@ def get_current_user_id(request: Request, response: Response):
 
     return None
 
+def login_with_access_and_refresh_token(subject: Union[str, Any], response: Response):
+    set_access_cookie(response=response, subject=subject)
+    set_refresh_cookie(response=response, subject=subject)
