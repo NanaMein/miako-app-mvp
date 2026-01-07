@@ -6,7 +6,7 @@ from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import VectorStoreIndex
 from dotenv import load_dotenv
-from crewai_flows.flow_main.vector_connection import MilvusVectorStoreClassAsync
+from llm_workflow.flow_main.vector_connection import MilvusVectorStoreClassAsync
 from llama_index.core.prompts import PromptTemplate
 
 
