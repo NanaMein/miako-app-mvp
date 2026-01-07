@@ -1,0 +1,52 @@
+2026-01-02 12:14:41.940 | INFO     | sample_logger:<module>:18 - LOGGER STARTING NOW
+2026-01-02 12:15:25.606 | SUCCESS  | __main__:__init__:73 - Instantiated Flow main
+2026-01-02 12:15:30.633 | INFO     | sample_logger:<module>:18 - LOGGER STARTING NOW
+2026-01-02 12:15:41.730 | SUCCESS  | __mp_main__:__init__:73 - Instantiated Flow main
+2026-01-02 12:15:42.369 | SUCCESS  | flow_chatbot:__init__:73 - Instantiated Flow main
+2026-01-02 12:16:56.099 | DEBUG    | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:451 - Initiating Vector connection in Lock...
+2026-01-02 12:16:56.100 | DEBUG    | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:458 - Started to make new connection to vector and cache it...
+2026-01-02 12:16:56.100 | INFO     | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:460 - Collection name [Collection_Of_user_2025_2026] created
+2026-01-02 12:16:56.160 | SUCCESS  | crewai_flows.flow_main.vector_connection:_milvus_client:363 - Successfully make milvus client connected to server
+2026-01-02 12:16:56.160 | INFO     | crewai_flows.flow_main.vector_connection:is_collection_name_exist:426 - Checking to see if Zilliz cloud has that collection name
+2026-01-02 12:16:57.251 | INFO     | crewai_flows.flow_main.vector_connection:_vector_store_with_bgem3:404 - Starting to make connection with Zilliz Cloud vector
+2026-01-02 12:16:57.251 | INFO     | crewai_flows.flow_main.vector_connection:bgem3function:349 - Starting to instantiate BGEM3SparseEmbeddingFunction...
+2026-01-02 12:17:04.166 | SUCCESS  | crewai_flows.flow_main.vector_connection:bgem3function:351 - BGEM3SparseEmbeddingFunction is instantiated!
+2026-01-02 12:17:05.935 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:474 - Successfully cached vector store in lock.
+2026-01-02 12:18:44.340 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:441 - Fast cache hit for vector store
+2026-01-02 12:18:47.195 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:441 - Fast cache hit for vector store
+2026-01-02 12:20:17.214 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:441 - Fast cache hit for vector store
+2026-01-02 12:20:19.627 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:441 - Fast cache hit for vector store
+2026-01-02 12:24:45.902 | INFO     | sample_logger:<module>:18 - LOGGER STARTING NOW
+2026-01-02 12:25:23.081 | SUCCESS  | __mp_main__:__init__:73 - Instantiated Flow main
+2026-01-02 12:25:24.084 | SUCCESS  | flow_chatbot:__init__:73 - Instantiated Flow main
+2026-01-02 12:25:24.404 | DEBUG    | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:452 - Initiating Vector connection in Lock...
+2026-01-02 12:25:24.405 | DEBUG    | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:459 - Started to make new connection to vector and cache it...
+2026-01-02 12:25:24.405 | INFO     | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:461 - Collection name [Collection_Of_assistant_2025_2026] created
+2026-01-02 12:25:24.431 | SUCCESS  | crewai_flows.flow_main.vector_connection:_milvus_client:363 - Successfully make milvus client connected to server
+2026-01-02 12:25:24.431 | INFO     | crewai_flows.flow_main.vector_connection:is_collection_name_exist:426 - Checking to see if Zilliz cloud has that collection name
+2026-01-02 12:25:25.512 | INFO     | crewai_flows.flow_main.vector_connection:_vector_store_with_bgem3:404 - Starting to make connection with Zilliz Cloud vector
+2026-01-02 12:25:25.513 | INFO     | crewai_flows.flow_main.vector_connection:bgem3function:349 - Starting to instantiate BGEM3SparseEmbeddingFunction...
+2026-01-02 12:25:28.720 | SUCCESS  | crewai_flows.flow_main.vector_connection:bgem3function:351 - BGEM3SparseEmbeddingFunction is instantiated!
+2026-01-02 12:25:33.728 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:471 - Altered properties for [Collection_Of_assistant_2025_2026] for the first time for TTL.
+2026-01-02 12:25:33.729 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:475 - Successfully cached vector store in lock.
+2026-01-02 12:25:36.342 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:442 - Fast cache hit for vector store
+2026-01-02 12:25:59.830 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:442 - Fast cache hit for vector store
+2026-01-02 12:26:01.396 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:442 - Fast cache hit for vector store
+2026-01-02 12:26:50.725 | DEBUG    | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:452 - Initiating Vector connection in Lock...
+2026-01-02 12:26:50.726 | DEBUG    | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:459 - Started to make new connection to vector and cache it...
+2026-01-02 12:26:50.726 | INFO     | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:461 - Collection name [Collection_Of_user_2025_2026] created
+2026-01-02 12:26:50.727 | SUCCESS  | crewai_flows.flow_main.vector_connection:_milvus_client:363 - Successfully make milvus client connected to server
+2026-01-02 12:26:50.727 | INFO     | crewai_flows.flow_main.vector_connection:is_collection_name_exist:426 - Checking to see if Zilliz cloud has that collection name
+2026-01-02 12:26:50.925 | INFO     | crewai_flows.flow_main.vector_connection:_vector_store_with_bgem3:404 - Starting to make connection with Zilliz Cloud vector
+2026-01-02 12:26:52.192 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:475 - Successfully cached vector store in lock.
+2026-01-02 12:26:54.057 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:442 - Fast cache hit for vector store
+2026-01-02 12:30:18.495 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:442 - Fast cache hit for vector store
+2026-01-02 12:30:21.255 | SUCCESS  | crewai_flows.flow_main.vector_connection:get_vector_store_chat_history:442 - Fast cache hit for vector store
+2026-01-02 12:41:39.873 | INFO     | sample_logger:<module>:18 - LOGGER STARTING NOW
+2026-01-02 12:41:49.650 | SUCCESS  | __mp_main__:__init__:73 - Instantiated Flow main
+2026-01-02 12:41:50.157 | SUCCESS  | flow_chatbot:__init__:73 - Instantiated Flow main
+2026-01-02 12:46:42.695 | INFO     | sample_logger:<module>:18 - LOGGER STARTING NOW
+2026-01-02 12:46:42.700 | SUCCESS  | __mp_main__:__init__:73 - Instantiated Flow main
+2026-01-02 12:46:43.150 | SUCCESS  | flow_chatbot:__init__:73 - Instantiated Flow main
+2026-01-02 13:14:54.066 | INFO     | sample_logger:<module>:18 - LOGGER STARTING NOW
+2026-01-02 13:29:05.802 | INFO     | sample_logger:<module>:18 - LOGGER STARTING NOW
