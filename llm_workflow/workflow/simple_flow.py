@@ -1,7 +1,6 @@
-import os
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, desc, delete
+from sqlmodel import delete
 from models.message_model import Message
 from schemas.message_schema import MessageBaseSchema, Role
 from databases.database import get_session
