@@ -13,7 +13,7 @@ from sqlmodel import select, desc, delete
 from models.message_model import Message
 from schemas.message_schema import MessageBaseSchema, Role
 from sqlalchemy.ext.asyncio import AsyncSession
-from crewai_flows.flow_main.vector_memory_store import ConversationMemoryStore
+from llm_workflow.flow_main.vector_memory_store import ConversationMemoryStore
 from sample_logger import logger
 
 load_dotenv()
