@@ -10,7 +10,7 @@ from sqlmodel import select, desc
 from models.message_model import Message
 from schemas.message_schema import Role
 from sqlalchemy.ext.asyncio import AsyncSession
-from llm_workflow.vector_store.vector_memory_store import ConversationMemoryStore
+from llm_workflow.vector_stores.vector_memory_store import ConversationMemoryStore
 
 load_dotenv()
 

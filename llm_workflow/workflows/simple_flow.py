@@ -4,7 +4,7 @@ from sqlmodel import delete
 from models.message_model import Message
 from schemas.message_schema import MessageBaseSchema, Role
 from databases.database import get_session
-from llm_workflow.flow_main.flow_chatbot import FlowMainWorkflow
+from llm_workflow.workflows.flow_chatbot import FlowMainWorkflow
 from fastapi import FastAPI, HTTPException, status, Depends
 
 load_dotenv()
