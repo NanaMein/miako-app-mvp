@@ -1,11 +1,5 @@
-import asyncio
 from typing import Optional
 from groq import AsyncGroq
-# from groq.types.chat import (
-#     ChatCompletionUserMessageParam as ChatUser,
-#     ChatCompletionSystemMessageParam as ChatSystem,
-#     ChatCompletionAssistantMessageParam as ChatAssistant,
-# )
 from functools import lru_cache
 from llm_workflow.config_files.config import settings_for_workflow as settings
 
@@ -14,7 +8,7 @@ def get_groq_client():
     return AsyncGroq(api_key=settings.GROQ_API_KEY.get_secret_value())
 
 
-class ChatCompletionsClass_ver1:
+class ChatCompletionsClass:
     def __init__(self):
         self.cached_messages = []
 
@@ -88,17 +82,3 @@ def _model(model: str) -> Optional[str]:
     }
 
     return choices.get(model)
-
-
-
-bot = ChatCompletionsClass_ver1()
-bot.add_system("YOu say the opposite of what is said to you by user")
-bot.add_user("Hello")
-bot.add_assistant("Goodbye!")
-bot.add_user("please dont write -100 words")
-
-
-
-bot_result = asyncio.run(bot.groq_scout(temperature=1,max_completion_tokens=10))
-print(bot_result)
-print("END")
