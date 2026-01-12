@@ -1,6 +1,7 @@
 import yaml
 import json
 from typing import Dict, Union, Any
+from llama_index.core.prompts import PromptTemplate
 
 
 class PromptLibrary:
@@ -32,3 +33,9 @@ class PromptLibrary:
 
         except KeyError:
             return f"Error: key {key_path} not found in library"
+
+    def create_template(self, key_path: str, **kwargs):
+        template = self.get_prompt(key_path=key_path)
+        template_obj = PromptTemplate(template=template)
+        final_template = template_obj.format(**kwargs)
+        return final_template
