@@ -14,8 +14,9 @@ from llm_workflow.vector_stores.vector_memory_store import ConversationMemorySto
 from llm_workflow.config_files.config import settings_for_workflow as settings
 
 
-from llm_workflow.chat_completions.groq_llm import ChatCompletionsClass_ver1 as ChatCompletionClass
+from llm_workflow.chat_completions.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
+from llama_index.core.prompts import PromptTemplate
 
 
 MEMORY_STORE = ConversationMemoryStore()
@@ -41,7 +42,7 @@ class MainWorkflow(Flow[MainFlowStates]):
 
     @property
     def chatbot(self):
-        return ChatCompletionClass()
+        return ChatCompletionsClass()
 
     @property
     def memory_store(self):
