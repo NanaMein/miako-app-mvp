@@ -12,15 +12,17 @@ from models.message_model import Message
 from models.user_model import User
 from models.conversation_model import Conversation
 
-import os
-from dotenv import load_dotenv
-load_dotenv()
+# import os
+# from dotenv import load_dotenv
+# load_dotenv()
+from core.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-database_url = os.getenv("DATABASE_URL")
+# database_url = os.getenv("DATABASE_URL")
+database_url = settings.DATABASE_URL.get_secret_value()
 if not database_url:
     raise ValueError("DATABASE_URL not set for migrations")
 
