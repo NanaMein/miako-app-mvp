@@ -12,7 +12,7 @@ COOKIE_SETTINGS={
     "httponly":True,
     "secure":True,
     "samesite":"lax",
-    "domain":settings.MDOMAIN
+    "domain":settings.DOMAIN
 }
 
 ph = PasswordHasher()
