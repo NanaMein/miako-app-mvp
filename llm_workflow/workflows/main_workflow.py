@@ -1,5 +1,5 @@
 from typing import Optional, Any
-from crewai.flow import Flow, start, listen
+from crewai.flow import Flow, start, listen, router, or_
 from llama_index.core import PromptTemplate
 from pydantic import BaseModel, ConfigDict, Field
 from dotenv import load_dotenv
@@ -46,14 +46,60 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @start()
     async def is_it_english(self):
-        system_prompt = LIBRARY.get_prompt("translation_layer.qwen_series.version_1")
+        system_prompt = LIBRARY.get_prompt("language_classifier.qwen_series.version_2")
         chatbot = ChatCompletionsClass()
         chatbot.add_system(system_prompt)
         chatbot.add_user(self.state.input_message)
         chat_response = await chatbot.groq_scout(
-            temperature=0, max_completion_tokens=10,
+            max_completion_tokens=1,
         )
         return chat_response
+
+    @router(is_it_english)
+    def english_router(self, answer):
+        if not answer:
+            return "Unknown"
+
+        is_english = str(answer).strip().upper()
+
+        if is_english == "YES":
+            return "ROUTER_PASS"
+
+        elif is_english == "NO":
+            return "ROUTER_TRANSLATE"
+
+        elif is_english == "UNKNOWN":
+            return "ROUTER_DENIED"
+        else:
+            return "ROUTER_DENIED"
+
+    @listen("ROUTER_PASS")
+    def english_user_query(self):
+        pass
+
+    @listen("ROUTER_TRANSLATE")
+    async def translating_user_query(self):
+        system_prompt = LIBRARY.get_prompt("translation_layer.qwen_series.version_1")
+        chatbot = ChatCompletionsClass()
+        chatbot.add_system(system_prompt)
+        chatbot.add_user(self.state.input_message)
+        chat_response = await chatbot.groq_maverick()
+        return chat_response
+
+
+    @listen("ROUTER_DENIED")
+    def unknown_category(self):
+        pass
+
+    @listen(or_(english_user_query, translating_user_query, unknown_category))
+    async def intent_classifier(self, answer):
+        system_prompt = LIBRARY.get_prompt("intent_classifier.qwen_series.version_1")
+        chatbot = ChatCompletionsClass()
+        chatbot.add_system(system_prompt)
+        chatbot.add_user(answer)
+        chat_response = await chatbot.groq_maverick()
+        return chat_response
+
 
 
 main_llm_workflow = LLMWorkflow()
