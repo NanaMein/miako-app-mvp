@@ -16,12 +16,16 @@ from llm_workflow.config_files.config import settings_for_workflow as settings
 
 from llm_workflow.chat_completions.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
-from llama_index.core.prompts import PromptTemplate
+from pathlib import Path
+import os
 
 
+CURRENT_FILE_DIR = Path(__file__).parent
+PROJECT_ROOT = CURRENT_FILE_DIR.parent
+PROMPT_DIR = PROJECT_ROOT / "prompts"
+PROMPTS_PATH = PROMPT_DIR / "prompts.yaml"
 MEMORY_STORE = ConversationMemoryStore()
-
-PROMPT_LIBRARY = PromptLibrary()
+LIBRARY = PromptLibrary(file_path=str(PROMPTS_PATH))
 
 def date_time_now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -48,9 +52,9 @@ class MainWorkflow(Flow[MainFlowStates]):
     def memory_store(self):
         return MEMORY_STORE
 
-    @property
-    def prompt_lib(self):
-        return PROMPT_LIBRARY
+    # @property
+    # def prompt_lib(self):
+    #     return PROMPT_LIBRARY
 
     async def add_memory_data(self, **kwargs):
         return await self.memory_store.add_memory(**kwargs)
