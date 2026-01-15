@@ -40,7 +40,35 @@ class MainFlowStates(FlowBase):
     input_user_id: str = Field(default="")
     async_session: Optional[AsyncSession] = None
 
-class MainWorkflow(Flow[MainFlowStates]):
+class LLMWorkflow(Flow[MainFlowStates]):
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+
+    @start()
+    async def is_it_english(self):
+        system_prompt = LIBRARY.get_prompt("translation_layer.qwen_series.version_1")
+        chatbot = ChatCompletionsClass()
+        chatbot.add_system(system_prompt)
+        chatbot.add_user(self.state.input_message)
+        chat_response = await chatbot.groq_scout(
+            temperature=0, max_completion_tokens=10,
+        )
+        return chat_response
+
+
+main_llm_workflow = LLMWorkflow()
+
+async def flow_kickoff(input_user_id: str, input_message: str, async_session: Optional[AsyncSession] = None):
+    inputs = {
+        "input_user_id": input_user_id,
+        "input_message": input_message,
+        "async_session": async_session
+    }
+    return await main_llm_workflow.kickoff_async(inputs=inputs) #or (**inputs)
+
+
+
+class MainWorkflowReference(Flow[MainFlowStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
 
