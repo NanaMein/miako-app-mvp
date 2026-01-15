@@ -44,7 +44,6 @@ class ChatCompletionsClass:
             messages=self.cached_messages,
             **kwargs
         )
-        print(f"""Here are the of caching \n\n {self.cached_messages}""")
         pre_content = completion.choices[0].message
         return pre_content.content
 
