@@ -46,7 +46,7 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @start()
     async def is_it_english(self):
-        system_prompt = LIBRARY.get_prompt("language_classifier.qwen_series.version_2")
+        system_prompt = LIBRARY.get_prompt("language_classifier.gemini_series.version_1")
         chatbot = ChatCompletionsClass()
         chatbot.add_system(system_prompt)
         chatbot.add_user(self.state.input_message)
@@ -75,10 +75,12 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @listen("ROUTER_PASS")
     def english_user_query(self):
-        pass
+        print("PASS")
+        return self.state.input_message
 
     @listen("ROUTER_TRANSLATE")
     async def translating_user_query(self):
+        print("TRANSLATE")
         system_prompt = LIBRARY.get_prompt("translation_layer.qwen_series.version_1")
         chatbot = ChatCompletionsClass()
         chatbot.add_system(system_prompt)
@@ -89,7 +91,8 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @listen("ROUTER_DENIED")
     def unknown_category(self):
-        pass
+        print("UNKNOWN")
+        return "violence and war"
 
     @listen(or_(english_user_query, translating_user_query, unknown_category))
     async def intent_classifier(self, answer):
@@ -98,6 +101,8 @@ class LLMWorkflow(Flow[MainFlowStates]):
         chatbot.add_system(system_prompt)
         chatbot.add_user(answer)
         chat_response = await chatbot.groq_maverick()
+        print(f"Intents: \n**{chat_response}**\n")
+        print(f"Translations: \n**{answer}**\n")
         return chat_response
 
 
