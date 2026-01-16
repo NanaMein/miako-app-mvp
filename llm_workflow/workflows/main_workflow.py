@@ -7,8 +7,6 @@ from llm_workflow.vector_stores.vector_memory_store import ConversationMemorySto
 from llm_workflow.chat_completions.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
 from pathlib import Path
-import os
-
 
 CURRENT_FILE_DIR = Path(__file__).parent
 PROJECT_ROOT = CURRENT_FILE_DIR.parent
