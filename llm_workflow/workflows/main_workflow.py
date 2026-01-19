@@ -22,6 +22,25 @@ MEMORY_STORE = ConversationMemoryStore()
 def date_time_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+
+from typing import Literal
+class IntentResponse(BaseModel):
+    reasoning: str
+    confidence: float
+    action: Literal["web_search", "rag_query", "direct_reply", "system_op"]
+    parameters: dict
+
+async def testing_intent_classifier(input_user: str):
+    _system_prompt = LIBRARY.get_prompt("intent_classifier.gemini_series.version_1")
+    _chatbot = ChatCompletionsClass()
+    _chatbot.add_system(_system_prompt)
+    _chatbot.add_user(input_user)
+    _chat_resp = await _chatbot.groq_maverick()
+    intent_data = IntentResponse.model_validate_json(_chat_resp)
+    return intent_data
+
+
+
 class MainFlowStates(BaseModel):
     input_message: str = Field(default="", description="User input message to llm workflow")
     input_user_id: str = Field(default="")
