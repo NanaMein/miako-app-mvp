@@ -215,6 +215,7 @@ class SampleStates:
 
 import asyncio
 from llm_workflow.workflows.main_workflow import LLMWorkflow
+import time
 
 
 async def llm_workflow(input_user_id: str, input_message: str):
@@ -225,7 +226,7 @@ async def llm_workflow(input_user_id: str, input_message: str):
 async def run_concurrent():
     tasks = []
     s = SampleStates()
-    for it in range (8):
+    for it in range (10):
         message = await s.get_choice_async()
         print(f"Message {str(s.state)}: {message}")
         task = llm_workflow(input_user_id=f"test_user_{it}", input_message=message)
@@ -238,7 +239,12 @@ async def run_concurrent():
         print("-" * 50)
 
 if __name__ == "__main__":
-    # asyncio.run(run_concurrent())
+    start = time.perf_counter()
+    asyncio.run(run_concurrent())
+    end = time.perf_counter()
+
+    print("~-/*" * 50)
+    print(f"Execution time in seconds: {end - start}")
     print("~-/*" * 50)
 
 
