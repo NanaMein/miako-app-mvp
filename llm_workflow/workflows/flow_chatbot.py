@@ -178,3 +178,68 @@ class FlowMainWorkflow(Flow[FlowMainStates]):
             user_id=self.state.input_user_id
         )
         return assistant_message
+
+SAMPLE_CHOICE = [
+    "Kamusta? May problema po ako sa aking laptop. Hindi siya magsisimula.",
+    "Magandang araw po! Pasensya na po, ano pong exact na nangyayari sa inyong laptop? May error message po ba na lumalabas?",
+    "Hindi po, wala pong error message. Parang dead lang talaga siya. Sinubukan ko nang i-plug sa charger pero walang reaction.",
+    "Naiintindihan ko po ang inyong problema. Pwede po bang tanungin kung gaano na po katagal 'to? At nangyari po ba ito bigla o may nanguna pong incident?",
+    "Nangyari po ito kahapon pagkatapos kong mag-update ng Windows. Nag-shutdown siya ng normal pero ngayon hindi na siya bumubukas.",
+    "Ah, salamat po sa impormasyon! Malamang po na may issue sa Windows update. Pwede po ba kayong subukan ang hard reset? Pindutin lang po ang power button ng 15 seconds, pagkatapos ay pakitanggal ang charger at battery kung maaari.",
+    "Sinubukan ko na po 'yan pero hindi pa rin gumagana. Ano pong next step?",
+    "Pasensya na po, Master. Pwede po ba tayong subukan ang external monitor? Baka po kasi ang issue ay sa display card o screen lamang. May VGA o HDMI port po ba ang inyong laptop?",
+    "Wala po akong external monitor. May iba pong paraan? Baka po ba ito hardware issue?"
+]
+
+class SampleStates:
+    def __init__(self):
+        self.state = 0
+        self.lock = asyncio.Lock()
+
+    def get_choice(self):
+        return self._sample_choice()
+
+    async def get_choice_async(self):
+        async with self.lock:
+            if self.state >=len(SAMPLE_CHOICE):
+                self.state = 0
+            _choice = SAMPLE_CHOICE[self.state]
+            self.state += 1
+            return _choice
+
+
+    def _sample_choice(self):
+        _choice = SAMPLE_CHOICE[self.state]
+        self.state += 1
+        return _choice
+
+import asyncio
+from llm_workflow.workflows.main_workflow import LLMWorkflow
+
+
+async def llm_workflow(input_user_id: str, input_message: str):
+    inputs = {"input_user_id": input_user_id, "input_message": input_message}
+    _workflow = LLMWorkflow()
+    return await _workflow.kickoff_async(inputs)
+
+async def run_concurrent():
+    tasks = []
+    s = SampleStates()
+    for it in range (8):
+        message = await s.get_choice_async()
+        print(f"Message {str(s.state)}: {message}")
+        task = llm_workflow(input_user_id=f"test_user_{it}", input_message=message)
+        tasks.append(task)
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for il, result in enumerate(results):
+        print(f"Result {il} (User test_user_{il}):\n{result}\n")
+        print("-" * 50)
+
+if __name__ == "__main__":
+    # asyncio.run(run_concurrent())
+    print("~-/*" * 50)
+
+
+
