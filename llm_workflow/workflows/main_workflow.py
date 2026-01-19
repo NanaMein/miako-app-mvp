@@ -106,7 +106,7 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @listen(or_(english_user_query, translating_user_query, unknown_category))
     async def intent_classifier(self, answer):
-        system_prompt = LIBRARY.get_prompt("intent_classifier.qwen_series.version_1")
+        system_prompt = LIBRARY.get_prompt("intent_classifier.gemini_series.version_1")
 
         chatbot = ChatCompletionsClass()
         chatbot.add_system(system_prompt)
@@ -144,6 +144,6 @@ async def llm_workflow_kickoff(
     try:
         _flow_kickoff = LLMWorkflow()
         flow_result: FlowStreamingOutput = await _flow_kickoff.kickoff_async(inputs=inputs)
-        return flow_result.result
+        return flow_result
     except Exception as e:
         HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Bad request: {e}")
