@@ -11,6 +11,9 @@ from models.message_model import Message
 from schemas.message_schema import Role
 from sqlalchemy.ext.asyncio import AsyncSession
 from llm_workflow.vector_stores.vector_memory_store import ConversationMemoryStore
+from llm_workflow.workflows.main_workflow import llm_workflow_kickoff
+import time
+import asyncio
 
 load_dotenv()
 
@@ -213,23 +216,14 @@ class SampleStates:
         self.state += 1
         return _choice
 
-import asyncio
-from llm_workflow.workflows.main_workflow import LLMWorkflow
-import time
-
-
-async def llm_workflow(input_user_id: str, input_message: str):
-    inputs = {"input_user_id": input_user_id, "input_message": input_message}
-    _workflow = LLMWorkflow()
-    return await _workflow.kickoff_async(inputs)
 
 async def run_concurrent():
     tasks = []
     s = SampleStates()
-    for it in range (10):
+    for it in range (13):
         message = await s.get_choice_async()
         print(f"Message {str(s.state)}: {message}")
-        task = llm_workflow(input_user_id=f"test_user_{it}", input_message=message)
+        task = llm_workflow_kickoff(input_user_id=f"test_user_{s.state}", input_message=message)
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
