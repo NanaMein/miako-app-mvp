@@ -194,16 +194,33 @@ SAMPLE_TAGALOG = [
     "Wala po akong external monitor. May iba pong paraan? Baka po ba ito hardware issue?"
 ]
 SAMPLE_LAO = [
-
+    "ສະບາຍດີ? ຂ້ອຍມີບັນຫາກັບ Laptop ຂອງຂ້ອຍ. ມັນເປີດບໍ່ຂຶ້ນເລີຍ.",
+    "ສະບາຍດີ! ຂໍໂທດເດີ້, ມັນເກີດຫຍັງຂຶ້ນກັບ Laptop ຂອງເຈົ້າແທ້? ມີ Error message ຫຍັງຂຶ້ນມາບໍ່?",
+    "ບໍ່ມີ, ບໍ່ມີ Error ຫຍັງເລີຍ. ຄືຈັ່ງມັນຕາຍໄປເລີຍ. ລອງສຽບສາຍ Charge ແລ້ວ ແຕ່ກໍບໍ່ມີການຕອບສະໜອງ.",
+    "ເຂົ້າໃຈແລ້ວ. ຂໍຖາມແດ່ ມັນເປັນແບບນີ້ດົນປານໃດແລ້ວ? ແລ້ວມັນເປັນເອງເລີຍ ຫຼື ວ່າມີເຫດການຫຍັງເກີດຂຶ້ນກ່ອນໜ້ານີ້ບໍ່?",
+    "ມັນເປັນຕັ້ງແຕ່ມື້ວານນີ້ ຫຼັງຈາກຂ້ອຍ Update Windows. ມັນ Shutdown ປົກກະຕິ ແຕ່ຕອນນີ້ເປີດບໍ່ຂຶ້ນແລ້ວ.",
+    "ໂອ້, ຂອບໃຈສຳລັບຂໍ້ມູນ! ອາດຈະເປັນຍ້ອນການ Update Windows. ລອງເຮັດ Hard reset ເບິ່ງກ່ອນໄດ້ບໍ່? ໃຫ້ກົດປຸ່ມ Power ຄ້າງໄວ້ 15 ວິນາທີ, ຫຼັງຈາກນັ້ນໃຫ້ຖອດສາຍ Charge ແລະ ແບັດເຕີຣີອອກ (ຖ້າຖອດໄດ້).",
+    "ລອງແລ້ວ ແຕ່ກໍຍັງໃຊ້ບໍ່ໄດ້. ຂັ້ນຕອນຕໍ່ໄປຕ້ອງເຮັດແນວໃດ?",
+    "ຂໍໂທດນຳເດີ້ເຈົ້າ. ລອງຕໍ່ກັບຈໍ External monitor ເບິ່ງໄດ້ບໍ່? ບາງທີບັນຫາອາດຈະຢູ່ທີ່ Display card ຫຼື ຫນ້າຈໍ. Laptop ຂອງເຈົ້າມີ Port VGA ຫຼື HDMI ບໍ່?",
+    "ຂ້ອຍບໍ່ມີຈໍ Monitor ນອກ. ມີວິທີອື່ນບໍ່? ຫຼື ວ່າມັນເປັນຍ້ອນ Hardware?"
 ]
 SAMPLE_BURMESE = [
-
+    "နေကောင်းလား? ကျွန်တော့် Laptop မှာ ပြဿနာတက်နေလို့။ စက်ဖွင့်လို့မရတော့ဘူး။",
+    "မင်္ဂလာပါရှင်! အားနာပါတယ်။ Laptop က အတိအကျ ဘာဖြစ်နေတာလဲဟင်? Error message တစ်ခုခုများ တက်လာသေးလား?",
+    "မတက်ပါဘူး။ ဘာ Error message မှမပြဘူး။ စက်က လုံးဝအသေဖြစ်နေတာ။ Charger ထိုးကြည့်ပေမယ့်လည်း ဘာမှမထူးခြားဘူး။",
+    "နားလည်ပါပြီ။ ဒါဖြစ်နေတာ ဘယ်လောက်ကြာပြီလဲဟင်? ပြီးတော့ ဒါက ရုတ်တရက်ဖြစ်သွားတာလား၊ ဒါမှမဟုတ် တစ်ခုခုဖြစ်ပြီးမှ ဖြစ်သွားတာလား?",
+    "မနေ့က Windows update လုပ်ပြီးမှ ဖြစ်သွားတာပါ။ ပုံမှန်အတိုင်း Shutdown ကျသွားပေမယ့် အခုကျတော့ ဖွင့်လို့မရတော့ဘူး။",
+    "အော် အချက်အလက်အတွက် ကျေးဇူးပါ။ Windows update ကြောင့် ဖြစ်နိုင်ပါတယ်။ Hard reset အရင်စမ်းကြည့်လို့ရမလား? Power button ကို ၁၅ စက္ကန့်လောက် ဖိထားပေးပါ၊ ပြီးရင် Charger နဲ့ Battery ကို (ဖြုတ်လို့ရရင်) ဖြုတ်ထားပေးပါ။",
+    "စမ်းကြည့်ပြီးပြီ၊ ဒါပေမယ့် မရသေးဘူး။ နောက်ထပ် ဘာလုပ်ရမလဲ?",
+    "ဟုတ်ကဲ့ပါ။ External monitor နဲ့များ စမ်းကြည့်လို့ရမလား? တစ်ခါတလေ Display card ဒါမှမဟုတ် Screen ကြောင့်လည်း ဖြစ်နိုင်လို့ပါ။ Laptop မှာ VGA ဒါမှမဟုတ် HDMI port ပါလားခင်ဗျာ?",
+    "ကျွန်တော့်မှာ External monitor မရှိဘူး။ တခြားနည်းရော ရှိသေးလား? ဒါ Hardware issue များ ဖြစ်နေတာလား?"
 ]
 
 class SampleStates:
-    def __init__(self):
-        self.state = 0
+    def __init__(self, sample: Optional[dict] = None, state: int = 0):
+        self.state = state
         self.lock = asyncio.Lock()
+        self.sample = sample
 
     def get_choice(self):
         return self._sample_choice()
@@ -215,6 +232,20 @@ class SampleStates:
             _choice = SAMPLE_TAGALOG[self.state]
             self.state += 1
             return _choice
+
+    async def get_sample(self):
+        async with self.lock:
+            if self.sample is not None:
+                _sample = self.sample
+            else:
+                _sample = SAMPLE_TAGALOG
+
+            if self.state >=len(_sample):
+                self.state = 0
+            sample_choice = _sample[self.state]
+            self.state += 1
+            return sample_choice
+
 
 
     def _sample_choice(self):
