@@ -182,7 +182,7 @@ class FlowMainWorkflow(Flow[FlowMainStates]):
         )
         return assistant_message
 
-SAMPLE_CHOICE = [
+SAMPLE_TAGALOG = [
     "Kamusta? May problema po ako sa aking laptop. Hindi siya magsisimula.",
     "Magandang araw po! Pasensya na po, ano pong exact na nangyayari sa inyong laptop? May error message po ba na lumalabas?",
     "Hindi po, wala pong error message. Parang dead lang talaga siya. Sinubukan ko nang i-plug sa charger pero walang reaction.",
@@ -192,6 +192,12 @@ SAMPLE_CHOICE = [
     "Sinubukan ko na po 'yan pero hindi pa rin gumagana. Ano pong next step?",
     "Pasensya na po, Master. Pwede po ba tayong subukan ang external monitor? Baka po kasi ang issue ay sa display card o screen lamang. May VGA o HDMI port po ba ang inyong laptop?",
     "Wala po akong external monitor. May iba pong paraan? Baka po ba ito hardware issue?"
+]
+SAMPLE_LAO = [
+
+]
+SAMPLE_BURMESE = [
+
 ]
 
 class SampleStates:
@@ -204,15 +210,15 @@ class SampleStates:
 
     async def get_choice_async(self):
         async with self.lock:
-            if self.state >=len(SAMPLE_CHOICE):
+            if self.state >=len(SAMPLE_TAGALOG):
                 self.state = 0
-            _choice = SAMPLE_CHOICE[self.state]
+            _choice = SAMPLE_TAGALOG[self.state]
             self.state += 1
             return _choice
 
 
     def _sample_choice(self):
-        _choice = SAMPLE_CHOICE[self.state]
+        _choice = SAMPLE_TAGALOG[self.state]
         self.state += 1
         return _choice
 
