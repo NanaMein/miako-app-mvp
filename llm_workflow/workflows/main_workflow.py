@@ -9,6 +9,8 @@ from llm_workflow.prompts.prompt_library import PromptLibrary
 from pathlib import Path
 from fastapi import status, HTTPException
 from crewai.flow.flow import FlowStreamingOutput
+from typing import Literal
+
 
 
 CURRENT_FILE_DIR = Path(__file__).parent
@@ -23,21 +25,11 @@ def date_time_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-from typing import Literal
 class IntentResponse(BaseModel):
     reasoning: str
     confidence: float
     action: Literal["web_search", "rag_query", "direct_reply", "system_op"]
     parameters: dict
-
-async def testing_intent_classifier(input_user: str):
-    _system_prompt = LIBRARY.get_prompt("intent_classifier.gemini_series.version_1")
-    _chatbot = ChatCompletionsClass()
-    _chatbot.add_system(_system_prompt)
-    _chatbot.add_user(input_user)
-    _chat_resp = await _chatbot.groq_maverick()
-    intent_data = IntentResponse.model_validate_json(_chat_resp)
-    return intent_data
 
 
 
@@ -113,9 +105,25 @@ class LLMWorkflow(Flow[MainFlowStates]):
         chatbot.add_user(answer)
 
         chat_response = await chatbot.groq_maverick()
-        print(f"Intents: \n**{chat_response}**\n")
-        print(f"Translations: \n**{answer}**\n")
-        return chat_response
+        intent_data = IntentResponse.model_validate_json(chat_response)
+        return intent_data
+
+    @listen(intent_classifier)
+    def intent_router(self, _intent_data):
+        intent_object: IntentResponse = _intent_data
+        intent_action = intent_object.action
+        if intent_action == "web_search":
+            return "WEB_SEARCH"
+        elif intent_action == "rag_query":
+            return "RAG_QUERY"
+        elif intent_action == "direct_reply":
+            return "DIRECT_REPLY"
+        elif intent_action == "system_op":
+            return "SYSTEM_OP"
+        else:
+            return "UNKNOWN"
+
+
 
 
 
