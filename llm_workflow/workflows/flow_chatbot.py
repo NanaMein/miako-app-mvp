@@ -217,7 +217,7 @@ SAMPLE_BURMESE = [
 ]
 
 class SampleStates:
-    def __init__(self, sample: Optional[dict] = None, state: int = 0):
+    def __init__(self, sample: Optional[list] = None, state: int = 0):
         self.state = state
         self.lock = asyncio.Lock()
         self.sample = sample
@@ -269,13 +269,50 @@ async def run_concurrent():
         print(f"Result {il} (User test_user_{il}):\n{result}\n")
         print("-" * 50)
 
-if __name__ == "__main__":
-    start = time.perf_counter()
-    asyncio.run(run_concurrent())
-    end = time.perf_counter()
+async def run_concurrent_all_language():
+    tasks = []
+    state_num = 0
+    tagalog = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
+    for tl in range (5):
+        message = await tagalog.get_choice_async()
+        print(f"Message Tagalog: {str(tagalog.state)}: {message}")
+        task = llm_workflow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=message)
+        tasks.append(task)
 
+    lao = SampleStates(sample=SAMPLE_LAO, state=state_num)
+    for la in range(5):
+        message = await lao.get_choice_async()
+        print(f"Message Lao: {str(lao.state)}: {message}")
+        task = llm_workflow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=message)
+        tasks.append(task)
+
+    burmese = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
+    for bu in range(5):
+        message = await burmese.get_choice_async()
+        print(f"Message Burmese: {str(burmese.state)}: {message}")
+        task = llm_workflow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=message)
+        tasks.append(task)
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for il, result in enumerate(results):
+        print(f"Result {il} (User test_user_{il}):\n{result}\n")
+        print("-" * 50)
+
+class Timer:
+    def __init__(self):
+        self.timer = time.perf_counter()
+
+    def now(self):
+        end_timer = time.perf_counter()
+        elapsed_time = end_timer - self.timer
+        return elapsed_time
+
+if __name__ == "__main__":
+    t = Timer()
+    asyncio.run(run_concurrent_all_language())
     print("~-/*" * 50)
-    print(f"Execution time in seconds: {end - start}")
+    print(f"Execution time in seconds: {t.now()}")
     print("~-/*" * 50)
 
 
