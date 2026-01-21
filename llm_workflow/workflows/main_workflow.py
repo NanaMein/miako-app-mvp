@@ -108,7 +108,7 @@ class LLMWorkflow(Flow[MainFlowStates]):
         intent_data = IntentResponse.model_validate_json(chat_response)
         return intent_data
 
-    @listen(intent_classifier)
+    @router(intent_classifier)
     def intent_router(self, _intent_data):
         intent_object: IntentResponse = _intent_data
         intent_action = intent_object.action
@@ -123,7 +123,21 @@ class LLMWorkflow(Flow[MainFlowStates]):
         else:
             return "UNKNOWN"
 
+    @listen("WEB_SEARCH")
+    def web_search_route(self):
+        pass
 
+    @listen("DIRECT_REPLY")
+    def direct_reply_route(self):
+        pass
+
+    @listen("RAG_QUERY")
+    def rag_query_route(self):
+        pass
+
+    @listen("SYSTEM_OP")
+    def system_op_route(self):
+        pass
 
 
 
