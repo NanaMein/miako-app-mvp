@@ -125,19 +125,19 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @listen("WEB_SEARCH")
     def web_search_route(self):
-        pass
+        return "web search SUCCESS"
 
     @listen("DIRECT_REPLY")
     def direct_reply_route(self):
-        pass
+        return "direct reply SUCCESS"
 
     @listen("RAG_QUERY")
     def rag_query_route(self):
-        pass
+        return "rag query SUCCESS"
 
     @listen("SYSTEM_OP")
     def system_op_route(self):
-        pass
+        return "system OP SUCCESS"
 
 
 
