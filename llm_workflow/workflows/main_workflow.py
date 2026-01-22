@@ -140,25 +140,13 @@ class LLMWorkflow(Flow[MainFlowStates]):
         return "system OP SUCCESS"
 
 
-async def flow_kickoff(input_user_id: str, input_message: str, async_session: Optional[AsyncSession] = None):
-    inputs = {
-        "input_user_id": input_user_id,
-        "input_message": input_message,
-        "async_session": async_session
-    }
-    try:
-        _flow_kickoff = LLMWorkflow()
-        flow_result: FlowStreamingOutput = await _flow_kickoff.kickoff_async(inputs=inputs)
-        return flow_result
-    except Exception as e:
-        HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Bad request: {e}")
-
-async def llm_workflow_kickoff(
+async def flow_kickoff(
         input_user_id: str,
         input_message: str,
         async_session: Optional[AsyncSession] = None
 ) -> Union[FlowStreamingOutput, Any]:
-    inputs: dict = {
+
+    inputs = {
         "input_user_id": input_user_id,
         "input_message": input_message,
         "async_session": async_session
