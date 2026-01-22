@@ -140,18 +140,18 @@ class LLMWorkflow(Flow[MainFlowStates]):
         return "system OP SUCCESS"
 
 
-
-main_llm_workflow = LLMWorkflow()
-
 async def flow_kickoff(input_user_id: str, input_message: str, async_session: Optional[AsyncSession] = None):
-    """Deprecated: Please use the new async wrapper because this one cause race conditions,
-    which is not good for an ideal concurrent ready llm workflow."""
     inputs = {
         "input_user_id": input_user_id,
         "input_message": input_message,
         "async_session": async_session
     }
-    return await main_llm_workflow.kickoff_async(inputs=inputs) #or (**inputs)
+    try:
+        _flow_kickoff = LLMWorkflow()
+        flow_result: FlowStreamingOutput = await _flow_kickoff.kickoff_async(inputs=inputs)
+        return flow_result
+    except Exception as e:
+        HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Bad request: {e}")
 
 async def llm_workflow_kickoff(
         input_user_id: str,
