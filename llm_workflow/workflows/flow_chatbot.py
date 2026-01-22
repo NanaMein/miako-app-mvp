@@ -11,7 +11,7 @@ from models.message_model import Message
 from schemas.message_schema import Role
 from sqlalchemy.ext.asyncio import AsyncSession
 from llm_workflow.vector_stores.vector_memory_store import ConversationMemoryStore
-from llm_workflow.workflows.main_workflow import llm_workflow_kickoff
+from llm_workflow.workflows.main_workflow import flow_kickoff
 import time
 import asyncio
 
@@ -260,7 +260,7 @@ async def run_concurrent():
     for it in range (13):
         message = await s.get_choice_async()
         print(f"Message {str(s.state)}: {message}")
-        task = llm_workflow_kickoff(input_user_id=f"test_user_{s.state}", input_message=message)
+        task = flow_kickoff(input_user_id=f"test_user_{s.state}", input_message=message)
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -276,21 +276,21 @@ async def run_concurrent_all_language():
     for tl in range (5):
         message = await tagalog.get_choice_async()
         print(f"Message Tagalog: {str(tagalog.state)}: {message}")
-        task = llm_workflow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=message)
+        task = flow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=message)
         tasks.append(task)
 
     lao = SampleStates(sample=SAMPLE_LAO, state=state_num)
     for la in range(5):
         message = await lao.get_choice_async()
         print(f"Message Lao: {str(lao.state)}: {message}")
-        task = llm_workflow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=message)
+        task = flow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=message)
         tasks.append(task)
 
     burmese = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
     for bu in range(5):
         message = await burmese.get_choice_async()
         print(f"Message Burmese: {str(burmese.state)}: {message}")
-        task = llm_workflow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=message)
+        task = flow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=message)
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
