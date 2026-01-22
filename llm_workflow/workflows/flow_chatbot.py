@@ -272,22 +272,23 @@ async def run_concurrent():
 async def run_concurrent_all_language():
     tasks = []
     state_num = 0
+    range_num = 3
     tagalog = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
-    for tl in range (5):
+    for tl in range (range_num):
         message = await tagalog.get_choice_async()
         print(f"Message Tagalog: {str(tagalog.state)}: {message}")
         task = flow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=message)
         tasks.append(task)
 
     lao = SampleStates(sample=SAMPLE_LAO, state=state_num)
-    for la in range(5):
+    for la in range(range_num):
         message = await lao.get_choice_async()
         print(f"Message Lao: {str(lao.state)}: {message}")
         task = flow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=message)
         tasks.append(task)
 
     burmese = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
-    for bu in range(5):
+    for bu in range(range_num):
         message = await burmese.get_choice_async()
         print(f"Message Burmese: {str(burmese.state)}: {message}")
         task = flow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=message)
