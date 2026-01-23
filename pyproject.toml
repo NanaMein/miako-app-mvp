@@ -1,36 +1,24 @@
 [project]
 name = "miako-app-mvp"
 version = "0.1.0"
-description = """**Mirai Aiko** (shortened to **Miako** for the domain and branding)
+description = """**Mirai Aiko** (shoruv tened to **Miako** for the domain and branding)
  – MVP demo of the AI assistant app. Private build for early testing with core features only."""
 requires-python = ">=3.13, <3.14"
 dependencies = [
-    "fastapi>=0.125.0",
-    "uvicorn>=0.38.0",
+    "alembic>=1.18.1",
     "asyncpg>=0.31.0",
-    "groq>=1.0.0",
-    "llama-index>=0.14.10",
-    "llama-index-embeddings-cohere>=0.6.1",
-    "llama-index-vector-stores-milvus>=0.9.4",
-    "python-dotenv>=1.2.1",
-    "python-jose[cryptography]>=3.5.0",
-    "sqlmodel>=0.0.21",
-    "sentencepiece>=0.2.1",
-    "alembic>=1.17.2",
+    "cachetools>=6.2.4",
     "crewai>=1.6.1",
-    "python-multipart>=0.0.20",
-    "passlib[argon2]>=1.7.4",
-    "llama-index-llms-groq>=0.4.1",
-    "flagembedding>=1.3.5",
+    "fastapi>=0.128.0",
+    "groq>=1.0.0",
+    "llama-index>=0.14.13",
+    "llama-index-embeddings-cohere>=0.6.1",
+    "llama-index-vector-stores-milvus>=0.9.6",
     "loguru>=0.7.3",
+    "passlib[argon2]>=1.7.4",
     "pytest-asyncio>=1.3.0",
-    "aiohttp==3.13.3",
-    "urllib3==2.6.3",
-    "filelock==3.20.3",
-    "torch==2.10.0",
-    "transformers==4.57.3",
-    "accelerate==1.12.0",
-    "pyasn1==0.6.2",
-    "marshmallow==3.26.2",
-    "virtualenv==20.36.1",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.21",
+    "sqlmodel>=0.0.31",
+    "uvicorn>=0.40.0",
 ]
