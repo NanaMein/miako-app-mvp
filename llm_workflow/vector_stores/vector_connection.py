@@ -1,6 +1,6 @@
 from typing import Optional
 from llama_index.vector_stores.milvus import MilvusVectorStore
-from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction, BGEM3SparseEmbeddingFunction
+from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction#,BGEM3SparseEmbeddingFunction
 from dotenv import load_dotenv
 from cachetools import TTLCache, LRUCache
 from pymilvus import AsyncMilvusClient
@@ -17,13 +17,17 @@ class MilvusVectorStoreClassAsync:
         self.cache = LRUCache(maxsize=100)
         self.master_lock = asyncio.Lock()
         self.user_locks = {}
-        self._bgem3function = None
+        # self._bgem3function = None
+
+    # @property
+    # def bgem3function(self) -> BGEM3SparseEmbeddingFunction:
+    #     if self._bgem3function is None:
+    #         self._bgem3function = BGEM3SparseEmbeddingFunction()
+    #     return self._bgem3function
 
     @property
-    def bgem3function(self) -> BGEM3SparseEmbeddingFunction:
-        if self._bgem3function is None:
-            self._bgem3function = BGEM3SparseEmbeddingFunction()
-        return self._bgem3function
+    def bm25function(self) -> BM25BuiltInFunction:
+        return BM25BuiltInFunction()
 
     def user_id_to_collection_name(self, user_id: str) -> str:
         len_of_16_str = user_id.strip()[:16]
@@ -47,7 +51,7 @@ class MilvusVectorStoreClassAsync:
                 enable_sparse=True,
                 enable_dense=True,
                 overwrite=False,  # CHANGE IT FOR DEVELOPMENT STAGE ONLY
-                sparse_embedding_function=self.bgem3function,
+                sparse_embedding_function=self.bm25function, #type: ignore
                 search_config={"nprobe": 60},
                 similarity_metric="IP",
                 consistency_level="Session",
