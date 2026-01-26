@@ -1,8 +1,8 @@
 from typing import Optional
 from llama_index.vector_stores.milvus import MilvusVectorStore
-from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction#,BGEM3SparseEmbeddingFunction
+from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction
 from dotenv import load_dotenv
-from cachetools import TTLCache, LRUCache
+from cachetools import LRUCache
 from pymilvus import AsyncMilvusClient
 from fastapi import HTTPException, status
 import os
@@ -17,13 +17,7 @@ class MilvusVectorStoreClassAsync:
         self.cache = LRUCache(maxsize=100)
         self.master_lock = asyncio.Lock()
         self.user_locks = {}
-        # self._bgem3function = None
 
-    # @property
-    # def bgem3function(self) -> BGEM3SparseEmbeddingFunction:
-    #     if self._bgem3function is None:
-    #         self._bgem3function = BGEM3SparseEmbeddingFunction()
-    #     return self._bgem3function
 
     @property
     def bm25function(self) -> BM25BuiltInFunction:
@@ -56,7 +50,7 @@ class MilvusVectorStoreClassAsync:
                 similarity_metric="IP",
                 consistency_level="Session",
                 hybrid_ranker="RRFRanker",
-                hybrid_ranker_params={"k": 80}
+                hybrid_ranker_params={"k": 60}
             )
             return vector_store
         except Exception as x:
