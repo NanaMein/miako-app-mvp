@@ -13,7 +13,18 @@ from llm_workflow.config_files.locking import LockManager
 
 CLIENT_URI=settings_for_workflow.CLIENT_URI.get_secret_value()
 CLIENT_TOKEN=settings_for_workflow.CLIENT_TOKEN.get_secret_value()
-BM25FUNCTION = BM25BuiltInFunction()
+BM25FUNCTION = BM25BuiltInFunction(
+    analyzer_params={
+        "tokenizer": "icu",
+        "filter": [
+            "lowercase",
+            {"type": "length", "max": 40},
+        ],
+    },
+    enable_match=True,
+    input_field_names=["text"],
+    output_field_names=["sparse_embeddings"]
+)
 VECTOR_CACHE = LRUCache(maxsize=1000)
 CACHE_FOR_LOCK = LRUCache(maxsize=1000)
 ASYNC_LOCK = asyncio.Lock()
