@@ -7,12 +7,12 @@ from pymilvus import AsyncMilvusClient
 from fastapi import HTTPException, status
 import os
 import asyncio
-from llm_workflow.config_files.config import settings_for_workflow
+from llm_workflow.config_files.config import workflow_settings
 from llm_workflow.config_files.locking import LockManager
 
 
-CLIENT_URI=settings_for_workflow.CLIENT_URI.get_secret_value()
-CLIENT_TOKEN=settings_for_workflow.CLIENT_TOKEN.get_secret_value()
+CLIENT_URI=workflow_settings.CLIENT_URI.get_secret_value()
+CLIENT_TOKEN=workflow_settings.CLIENT_TOKEN.get_secret_value()
 BM25FUNCTION = BM25BuiltInFunction(
     analyzer_params={
         "tokenizer": "icu",
