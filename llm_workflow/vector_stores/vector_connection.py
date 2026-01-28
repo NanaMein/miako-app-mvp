@@ -28,10 +28,20 @@ BM25FUNCTION = BM25BuiltInFunction(
 VECTOR_CACHE = LRUCache(maxsize=1000)
 CACHE_FOR_LOCK = LRUCache(maxsize=1000)
 ASYNC_LOCK = asyncio.Lock()
-CLIENT = AsyncMilvusClient(
-    uri=CLIENT_URI,
-    token=CLIENT_TOKEN
-)
+
+_ASYNC_MILVUS_CLIENT: Union[AsyncMilvusClient, None] = None
+_MILVUS_LOCK = asyncio.Lock()
+
+async def milvus_client():
+    global _ASYNC_MILVUS_CLIENT
+    if _ASYNC_MILVUS_CLIENT is None:
+        async with _MILVUS_LOCK:
+            if _ASYNC_MILVUS_CLIENT is None:
+                _ASYNC_MILVUS_CLIENT = AsyncMilvusClient(
+                    uri=CLIENT_URI,
+                    token=CLIENT_TOKEN
+                )
+    return _ASYNC_MILVUS_CLIENT
 
 
 class MilvusVectorStoreConnection:
@@ -94,11 +104,13 @@ class MilvusVectorStoreConnection:
 
 
     async def _is_collection_name_exist(self) -> bool:
-        return await CLIENT.has_collection(collection_name=self.collection_name)
+        client = await milvus_client()
+        return await client.has_collection(collection_name=self.collection_name)
 
 
     async def _alter_if_collection_name_not_exist(self) -> None:
-        await CLIENT.alter_collection_properties(
+        client = await milvus_client()
+        await client.alter_collection_properties(
             collection_name=self.collection_name,
             properties={"collection.ttl.seconds": self.default_ttl}
         )
