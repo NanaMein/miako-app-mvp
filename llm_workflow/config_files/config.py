@@ -6,6 +6,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 class LLMSettings(BaseSettings):
     GROQ_API_KEY: SecretStr
+    CLIENT_USER: SecretStr
+    CLIENT_PASSWORD: SecretStr
+    CLIENT_SERVER_NAME: SecretStr
+    CLIENT_URI: SecretStr
+    CLIENT_TOKEN: SecretStr
+    COHERE_API_KEY: SecretStr
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -15,4 +21,3 @@ class LLMSettings(BaseSettings):
 
 settings_for_workflow = LLMSettings()
 
-print(settings_for_workflow.GROQ_API_KEY)
