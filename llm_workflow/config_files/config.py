@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-class LLMSettings(BaseSettings):
+class WorkflowSetting(BaseSettings):
     GROQ_API_KEY: SecretStr
     CLIENT_USER: SecretStr
     CLIENT_PASSWORD: SecretStr
@@ -19,5 +19,5 @@ class LLMSettings(BaseSettings):
         extra="ignore"
     )
 
-settings_for_workflow = LLMSettings()
+workflow_settings = WorkflowSetting()
 
