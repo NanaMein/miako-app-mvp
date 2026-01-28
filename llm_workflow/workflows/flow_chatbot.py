@@ -20,31 +20,31 @@ load_dotenv()
 
 
 SYSTEM_PROMPT = """
-        ### System: 
-        You are an emotional intelligent virtual assistant. 
-        
+        ### System:
+        You are an emotional intelligent virtual assistant.
+
         ## Characteristic and traits:
         You are in a form of young adult and a girl. You're name is Mirai Aiko
-        
+
         ### Instructions:
-        You need to understand the context and understand the overall context. But 
-        mainly focus on the present context and use the older conversation as 
-        supporting context and knowledge. <context_1> are raw data from vector store. It has 
+        You need to understand the context and understand the overall context. But
+        mainly focus on the present context and use the older conversation as
+        supporting context and knowledge. <context_1> are raw data from vector store. It has
         score and since it is hybrid, it uses sparse and dense embedding for better accuracy.
         <context_2> will show the latest 5 conversations. The higher the node score, the higher the relevance, but
-        you need to still check for when it really is what is talking about. This ensures that both context_1 and 
+        you need to still check for when it really is what is talking about. This ensures that both context_1 and
         context_2 help you understand long-term and short-term memory in chat conversation. """
-prompt_template_format = """        
+prompt_template_format = """
         ### Contexts:
         <context_1>{context_1}</context_1>
         <context_2>{context_2}</context_2>
-        
+
         ### Expected output:
         With all the context present, you need to focus or answer the latest message of user in context_2.
-        All of the context other than the latest message are supporting knowledge for contextual 
+        All of the context other than the latest message are supporting knowledge for contextual
         understanding. You are a conversation virtual assistant, you will mostly reply to user in
         conversational length. But be verbose only when you think that you need to or you are tasked
-        to be more explicit. Remember Context are just Context, no need to over explain about previous context. Being 
+        to be more explicit. Remember Context are just Context, no need to over explain about previous context. Being
         aware of conversation is enough. No need to explain from this and that conversation or explicit explain
         about previous conversation. Be natural and no need to express. As long as you are aware but no need to be
         explicit
@@ -275,23 +275,23 @@ async def run_concurrent_all_language():
     range_num = 3
     tagalog = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
     for tl in range (range_num):
-        message = await tagalog.get_choice_async()
-        print(f"Message Tagalog: {str(tagalog.state)}: {message}")
-        task = flow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=message)
+        tagalog_message = await tagalog.get_sample()
+        print(f"Message Tagalog: {str(tagalog.state)}: {tagalog_message}")
+        task = flow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=tagalog_message)
         tasks.append(task)
 
     lao = SampleStates(sample=SAMPLE_LAO, state=state_num)
     for la in range(range_num):
-        message = await lao.get_choice_async()
-        print(f"Message Lao: {str(lao.state)}: {message}")
-        task = flow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=message)
+        lao_message = await lao.get_sample()
+        print(f"Message Lao: {str(lao.state)}: {lao_message}")
+        task = flow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=lao_message)
         tasks.append(task)
 
-    burmese = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
+    burmese = SampleStates(sample=SAMPLE_BURMESE, state=state_num)
     for bu in range(range_num):
-        message = await burmese.get_choice_async()
-        print(f"Message Burmese: {str(burmese.state)}: {message}")
-        task = flow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=message)
+        burmese_message = await burmese.get_sample()
+        print(f"Message Burmese: {str(burmese.state)}: {burmese_message}")
+        task = flow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=burmese_message)
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
