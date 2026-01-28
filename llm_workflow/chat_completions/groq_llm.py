@@ -1,11 +1,11 @@
 from typing import Optional
 from groq import AsyncGroq
 from functools import lru_cache
-from llm_workflow.config_files.config import settings_for_workflow as settings
+from llm_workflow.config_files.config import workflow_settings
 
 @lru_cache()
 def get_groq_client():
-    return AsyncGroq(api_key=settings.GROQ_API_KEY.get_secret_value())
+    return AsyncGroq(api_key=workflow_settings.GROQ_API_KEY.get_secret_value())
 
 
 class ChatCompletionsClass:
