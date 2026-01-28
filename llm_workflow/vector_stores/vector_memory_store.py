@@ -6,7 +6,7 @@ from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import VectorStoreIndex
 from dotenv import load_dotenv
-from llm_workflow.vector_stores.vector_connection import MilvusVectorStoreClassAsync
+from llm_workflow.vector_stores.vector_connection import MilvusVectorStoreConnection
 from llama_index.core.prompts import PromptTemplate
 
 
@@ -49,9 +49,9 @@ class ConversationMemoryStore:
 
 
     @property
-    def milvus(self) -> MilvusVectorStoreClassAsync:
+    def milvus(self) -> MilvusVectorStoreConnection:
         if self._milvus is None:
-            self._milvus = MilvusVectorStoreClassAsync()
+            self._milvus = MilvusVectorStoreConnection() #NEEDS USER ID, MAKE NEW ISSUE AND PR HERE
         return self._milvus
 
     @property
@@ -77,7 +77,7 @@ class ConversationMemoryStore:
 
 
     async def _get_vector(self, user_id:str) -> MilvusVectorStore:
-        return await self.milvus.get_vector_store_chat_history(user_id=user_id)
+        return await self.milvus.get_vector_store() #DOESNT NEED USER ID HERE, NEED ISSUE AND PR
 
 
     def _get_retriever(self, vector_store: MilvusVectorStore) -> BaseRetriever:
