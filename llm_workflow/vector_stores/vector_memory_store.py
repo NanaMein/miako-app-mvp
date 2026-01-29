@@ -38,10 +38,9 @@ MESSAGE_TEMPLATE = PromptTemplate(MESSAGE_FORMAT_TEMPLATE)
 
 class ConversationMemoryStore:
 
-    def __init__(self,node_template=NODE_TEMPLATE, message_template=MESSAGE_TEMPLATE):
-        self._milvus = None
-        self._embed_model_document = None
-        self._embed_model_query = None
+    def __init__(self,user_id: str, message: str ,node_template=NODE_TEMPLATE, message_template=MESSAGE_TEMPLATE):
+        self._user_id = user_id
+        self._message = message
         self.node_template = node_template
         self.message_template = message_template
         self.sentence_splitter = SentenceSplitter(chunk_size=360, chunk_overlap=60)
@@ -49,32 +48,26 @@ class ConversationMemoryStore:
 
 
     @property
-    def milvus(self) -> MilvusVectorStoreConnection:
-        if self._milvus is None:
-            self._milvus = MilvusVectorStoreConnection() #NEEDS USER ID, MAKE NEW ISSUE AND PR HERE
-        return self._milvus
+    def milvus_store(self) -> MilvusVectorStoreConnection:
+        return MilvusVectorStoreConnection(user_id=self._user_id)
 
-    @property
-    def embed_model_document(self) -> CohereEmbedding:
-        if self._embed_model_document is None:
+    @staticmethod
+    def embed_model_document():
+        _embed_model_document = CohereEmbedding(
+            model_name="embed-v4.0",
+            api_key=os.getenv('CLIENT_COHERE_API_KEY'),
+            input_type="search_document"
+        )
+        return _embed_model_document
 
-            self._embed_model_document = CohereEmbedding(
-                model_name="embed-v4.0",
-                api_key=os.getenv('CLIENT_COHERE_API_KEY'),
-                input_type="search_document"
-            )
-        return self._embed_model_document
-
-    @property
-    def embed_model_query(self) -> CohereEmbedding:
-        if self._embed_model_query is None:
-            self._embed_model_query = CohereEmbedding(
-                model_name="embed-v4.0",
-                api_key=os.getenv('CLIENT_COHERE_API_KEY'),
-                input_type="search_query"
-            )
-        return self._embed_model_query
-
+    @staticmethod
+    def embed_model_query():
+        _embed_model_query = CohereEmbedding(
+            model_name="embed-v4.0",
+            api_key=os.getenv('CLIENT_COHERE_API_KEY'),
+            input_type="search_query"
+        )
+        return _embed_model_query
 
     async def _get_vector(self, user_id:str) -> MilvusVectorStore:
         return await self.milvus.get_vector_store() #DOESNT NEED USER ID HERE, NEED ISSUE AND PR
