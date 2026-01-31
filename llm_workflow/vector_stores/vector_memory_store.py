@@ -1,4 +1,7 @@
 import os
+from typing import Literal
+from fastapi import HTTPException, status
+from instructor.cli.files import status
 from llama_index.core import Document
 from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.node_parser import SentenceSplitter
@@ -46,7 +49,6 @@ class ConversationMemoryStore:
         self.sentence_splitter = SentenceSplitter(chunk_size=360, chunk_overlap=60)
 
 
-
     @property
     def milvus_store(self) -> MilvusVectorStoreConnection:
         return MilvusVectorStoreConnection(user_id=self._user_id)
@@ -69,24 +71,18 @@ class ConversationMemoryStore:
         )
         return _embed_model_query
 
-    async def _get_vector(self, user_id:str) -> MilvusVectorStore:
-        return await self.milvus.get_vector_store() #DOESNT NEED USER ID HERE, NEED ISSUE AND PR
+    async def _get_retriever(self) -> BaseRetriever:
+        index = await self._index(embed="query")
 
-
-    def _get_retriever(self, vector_store: MilvusVectorStore) -> BaseRetriever:
-
-        index = VectorStoreIndex.from_vector_store(
-            vector_store=vector_store, embed_model=self.embed_model_query, use_async=True
-        )
         retriever = index.as_retriever(
             vector_store_query_mode="hybrid", similarity_top_k=5
         )
         return retriever
 
-    async def get_memory(self, user_id: str, message: str) -> str:
-        vector_store = await self._get_vector(user_id)
-        retriever = self._get_retriever(vector_store)
-        node_with_score = await retriever.aretrieve(message)
+    async def get_memory(self) -> str:
+
+        retriever = await self._get_retriever()
+        node_with_score = await retriever.aretrieve(self._message)
 
         retrieved_context = ""
 
@@ -100,8 +96,22 @@ class ConversationMemoryStore:
 
         return retrieved_context
 
+    async def _index(self, embed: Literal["document","query"]):
+        vector_store = await self.milvus_store.get_vector_store()
+        if embed=="document":
+            embed_model = ConversationMemoryStore.embed_model_document()
+        elif embed=="query":
+            embed_model = ConversationMemoryStore.embed_model_query()
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
+
+        _index = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store, embed_model=embed_model, use_async=True
+        )
+        return _index
+
     async def add_memory(
-            self, user_id:str,
+            self,
             user_message: str = "",
             assistant_message: str = "",
     ) -> bool:
@@ -112,11 +122,7 @@ class ConversationMemoryStore:
         )
         docs = [Document(text=rendered_template)]
 
-
-        vector_store = await self._get_vector(user_id=user_id)
-        index = VectorStoreIndex.from_vector_store(
-            vector_store=vector_store, embed_model=self.embed_model_document, use_async=True
-        )
+        index = await self._index(embed="document")
 
         try:
             nodes = await self.sentence_splitter.aget_nodes_from_documents(docs)
