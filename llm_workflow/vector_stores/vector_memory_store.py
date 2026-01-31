@@ -4,33 +4,23 @@ from llama_index.core import Document
 from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.cohere import CohereEmbedding
-from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import VectorStoreIndex
 from llm_workflow.vector_stores.vector_connection import MilvusVectorStoreConnection
 from llm_workflow.config_files.config import workflow_settings
 from llama_index.core.prompts import PromptTemplate
 from datetime import datetime, timezone
+from llm_workflow.prompts.prompt_library import PromptLibrary
+from pathlib import Path
 
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+PATH_DIR=str(BASE_DIR / "prompts" / "prompts.yaml")
 
-PRESENTATION_NODE_TEMPLATE = """
-<Node>
-  <text>{text}</text>
-  <source>{source}</source>
-  <turn_index>{turn_index}</turn_index>
-  <score>{score}</score>
-</Node>
-"""
-PRESENTATION_MESSAGE_TEMPLATE = """
-<conversation_turn>
-  <user_turn>{user_message}</user_turn>
-  <assistant_turn>{assistant_message}</assistant_turn>
-</conversation_turn>
----/---/---
-"""
 
-PRESENTATION_NODE = PromptTemplate(PRESENTATION_NODE_TEMPLATE)
-PRESENTATION_MESSAGE = PromptTemplate(PRESENTATION_MESSAGE_TEMPLATE)
+LIB = PromptLibrary(file_path=PATH_DIR)
+
+PRESENTATION_NODE = PromptTemplate(LIB.get_prompt("template.for_node"))
+PRESENTATION_MESSAGE = PromptTemplate(LIB.get_prompt("template.for_message"))
 
 EMBED_TYPE = Literal["document", "query"]
 SPLITTER = SentenceSplitter(chunk_size=360, chunk_overlap=60)
