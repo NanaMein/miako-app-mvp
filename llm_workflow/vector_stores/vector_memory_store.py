@@ -1,52 +1,45 @@
-import os
 from typing import Literal
 from fastapi import HTTPException, status
-from instructor.cli.files import status
 from llama_index.core import Document
 from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.core import VectorStoreIndex
-from dotenv import load_dotenv
 from llm_workflow.vector_stores.vector_connection import MilvusVectorStoreConnection
+from llm_workflow.config_files.config import workflow_settings
 from llama_index.core.prompts import PromptTemplate
+from datetime import datetime, timezone
 
 
-load_dotenv()
 
-
-NODE_FORMAT_TEMPLATE="""
-    <Node_start>\n
-    <Node_text>{node_text}</Node_text>\n
-    <Node_metadata>{node_metadata}</Node_metadata>\n
-    <Node_score>{node_score}<Node_score>\n
-    </Node_end>\n\n
+PRESENTATION_NODE_TEMPLATE = """
+<Node>
+  <text>{text}</text>
+  <source>{source}</source>
+  <turn_index>{turn_index}</turn_index>
+  <score>{score}</score>
+</Node>
 """
-MESSAGE_FORMAT_TEMPLATE = """
-    <conversation_turn>\n
-        <user_turn>\n
-            {{user_message}}\n
-        </user_turn>\n
-        <assistant_turn>\n
-            {{assistant_message}}\n
-        </assistant_turn>\n
+PRESENTATION_MESSAGE_TEMPLATE = """
+<conversation_turn>
+  <user_turn>{user_message}</user_turn>
+  <assistant_turn>{assistant_message}</assistant_turn>
+</conversation_turn>
+---/---/---
+"""
 
-    </conversation_turn>\n \n---/---/---\n"""
+PRESENTATION_NODE = PromptTemplate(PRESENTATION_NODE_TEMPLATE)
+PRESENTATION_MESSAGE = PromptTemplate(PRESENTATION_MESSAGE_TEMPLATE)
 
-NODE_TEMPLATE = PromptTemplate(NODE_FORMAT_TEMPLATE)
-MESSAGE_TEMPLATE = PromptTemplate(MESSAGE_FORMAT_TEMPLATE)
-
+EMBED_TYPE = Literal["document", "query"]
+SPLITTER = SentenceSplitter(chunk_size=360, chunk_overlap=60)
 
 
 class ConversationMemoryStore:
 
-    def __init__(self,user_id: str, message: str ,node_template=NODE_TEMPLATE, message_template=MESSAGE_TEMPLATE):
+    def __init__(self, user_id: str):
         self._user_id = user_id
-        self._message = message
-        self.node_template = node_template
-        self.message_template = message_template
-        self.sentence_splitter = SentenceSplitter(chunk_size=360, chunk_overlap=60)
 
 
     @property
@@ -57,7 +50,7 @@ class ConversationMemoryStore:
     def embed_model_document():
         _embed_model_document = CohereEmbedding(
             model_name="embed-v4.0",
-            api_key=os.getenv('CLIENT_COHERE_API_KEY'),
+            api_key=workflow_settings.COHERE_API_KEY.get_secret_value(),
             input_type="search_document"
         )
         return _embed_model_document
@@ -66,19 +59,23 @@ class ConversationMemoryStore:
     def embed_model_query():
         _embed_model_query = CohereEmbedding(
             model_name="embed-v4.0",
-            api_key=os.getenv('CLIENT_COHERE_API_KEY'),
+            api_key=workflow_settings.COHERE_API_KEY.get_secret_value(),
             input_type="search_query"
         )
         return _embed_model_query
 
-    async def _index(self, embed: Literal["document","query"]):
+    async def _get_index(self, embed_type: EMBED_TYPE):
+        if embed_type not in ("document", "query"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="embed_type must be either 'document' or 'query'"
+            )
+
         vector_store = await self.milvus_store.get_vector_store()
-        if embed=="document":
+        if embed_type == "document":
             embed_model = ConversationMemoryStore.embed_model_document()
-        elif embed=="query":
-            embed_model = ConversationMemoryStore.embed_model_query()
         else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
+            embed_model = ConversationMemoryStore.embed_model_query()
 
         _index = VectorStoreIndex.from_vector_store(
             vector_store=vector_store, embed_model=embed_model, use_async=True
@@ -86,46 +83,63 @@ class ConversationMemoryStore:
         return _index
 
     async def _get_retriever(self) -> BaseRetriever:
-        index = await self._index(embed="query")
+        index = await self._get_index(embed_type="query")
 
         retriever = index.as_retriever(
             vector_store_query_mode="hybrid", similarity_top_k=5
         )
         return retriever
 
-    async def get_memory(self) -> str:
+    async def show_(self, query: str) -> str:
 
         retriever = await self._get_retriever()
-        node_with_score = await retriever.aretrieve(self._message)
+        node_with_score = await retriever.aretrieve(query)
 
-        retrieved_context = ""
+        output = ""
 
         for node in node_with_score:
-            template_with_node = self.node_template.format(
-                node_text=node.text,
-                node_metadata=node.metadata,
-                node_score=node.score
+            text = node.text
+            md = getattr(node, "metadata", {}) or {}
+            presentation = PRESENTATION_NODE.format(
+                text=text,
+                source=md.get("source","unknown"),
+                turn_index=md.get("turn_index",-1),
+                score=getattr(node, "score", 0),
             )
-            retrieved_context += template_with_node
+            output += presentation
 
-        return retrieved_context
+        return output
 
-    async def add_memory(
+    async def add_(
             self,
             user_message: str = "",
             assistant_message: str = "",
     ) -> bool:
 
-        rendered_template = self.message_template.format(
+        presentation_message = PRESENTATION_MESSAGE.format(
             user_message=user_message,
             assistant_message=assistant_message
         )
-        docs = [Document(text=rendered_template)]
 
-        index = await self._index(embed="document")
+        plain_text_for_embed = f"User: {user_message}\nAssistant: {assistant_message}"
+
+        _docs = [
+            Document(
+                text=plain_text_for_embed,
+                metadata={
+                    "presentation":presentation_message,
+                    "type": "conversation_turn",
+                    "user_message": user_message,
+                    "assistant_message": assistant_message,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+        ]
+
+        index = await self._get_index(embed_type="document")
 
         try:
-            nodes = await self.sentence_splitter.aget_nodes_from_documents(docs)
+            nodes = await SPLITTER.aget_nodes_from_documents(_docs)
 
             await index.ainsert_nodes(nodes=nodes)
             return True
