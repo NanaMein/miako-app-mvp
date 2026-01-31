@@ -71,6 +71,20 @@ class ConversationMemoryStore:
         )
         return _embed_model_query
 
+    async def _index(self, embed: Literal["document","query"]):
+        vector_store = await self.milvus_store.get_vector_store()
+        if embed=="document":
+            embed_model = ConversationMemoryStore.embed_model_document()
+        elif embed=="query":
+            embed_model = ConversationMemoryStore.embed_model_query()
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
+
+        _index = VectorStoreIndex.from_vector_store(
+            vector_store=vector_store, embed_model=embed_model, use_async=True
+        )
+        return _index
+
     async def _get_retriever(self) -> BaseRetriever:
         index = await self._index(embed="query")
 
@@ -95,20 +109,6 @@ class ConversationMemoryStore:
             retrieved_context += template_with_node
 
         return retrieved_context
-
-    async def _index(self, embed: Literal["document","query"]):
-        vector_store = await self.milvus_store.get_vector_store()
-        if embed=="document":
-            embed_model = ConversationMemoryStore.embed_model_document()
-        elif embed=="query":
-            embed_model = ConversationMemoryStore.embed_model_query()
-        else:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
-
-        _index = VectorStoreIndex.from_vector_store(
-            vector_store=vector_store, embed_model=embed_model, use_async=True
-        )
-        return _index
 
     async def add_memory(
             self,
