@@ -92,6 +92,7 @@ class MilvusVectorStoreConnection:
                 enable_dense=True,
                 overwrite=False,  # CHANGE IT FOR DEVELOPMENT STAGE ONLY
                 sparse_embedding_function=self.bm25function, #type: ignore
+                sparse_embedding_field="sparse_embeddings",
                 search_config={"nprobe": 60},
                 similarity_metric="IP",
                 consistency_level="Session",
@@ -156,7 +157,7 @@ class MilvusVectorStoreConnection:
             pass
 
         try:
-            self.vector_cache.pop(self._user_id)
+            self.vector_cache.pop(self._user_id, None)
             vector = await self._core_vector_store_logic()
             return vector
         except HTTPException as ex:
