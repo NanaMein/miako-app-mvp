@@ -80,7 +80,7 @@ class ConversationMemoryStore:
         )
         return retriever
 
-    async def show_(self, query: str) -> str:
+    async def _show_result_with_retriever(self, query: str) -> str:
 
         retriever = await self._get_retriever()
         node_with_score = await retriever.aretrieve(query)
@@ -142,6 +142,15 @@ class ConversationMemoryStore:
                 assistant_message=assistant_message
             )
             return True
+        except Exception as e:
+            raise MemoryStoreException(detail=str(e))
+
+
+
+    async def show_(self, query: str):
+        try:
+            output = await self._show_result_with_retriever(query)
+            return output
         except Exception as e:
             raise MemoryStoreException(detail=str(e))
 
