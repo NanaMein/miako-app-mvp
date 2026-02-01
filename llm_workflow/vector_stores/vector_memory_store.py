@@ -100,12 +100,11 @@ class ConversationMemoryStore:
 
         return output
 
-    async def add_(
+    async def _add_all_messages_to_memory_store(
             self,
             user_message: str = "",
             assistant_message: str = "",
-    ) -> bool:
-
+    ) -> None:
         presentation_message = PRESENTATION_MESSAGE.format(
             user_message=user_message,
             assistant_message=assistant_message
@@ -128,14 +127,24 @@ class ConversationMemoryStore:
 
         index = await self._get_index(embed_type="document")
 
-        try:
-            nodes = await SPLITTER.aget_nodes_from_documents(_docs)
+        nodes = await SPLITTER.aget_nodes_from_documents(_docs)
+        await index.ainsert_nodes(nodes=nodes)
 
-            await index.ainsert_nodes(nodes=nodes)
+
+    async def add_(
+            self,
+            user_message: str = "",
+            assistant_message: str = "",
+    ):
+        try:
+            await self._add_all_messages_to_memory_store(
+                user_message=user_message,
+                assistant_message=assistant_message
+            )
             return True
-        except Exception as ex:
-            print(f"error: {ex}")
-            return False
+        except Exception as e:
+            raise MemoryStoreException(detail=str(e))
+
 
 
 class MemoryStoreException(HTTPException):
