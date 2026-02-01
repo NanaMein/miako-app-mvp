@@ -56,21 +56,20 @@ class ConversationMemoryStore:
 
     async def _get_index(self, embed_type: EMBED_TYPE):
         if embed_type not in ("document", "query"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="embed_type must be either 'document' or 'query'"
+            raise MemoryStoreException(detail="Error in parameter type")
+        try:
+            vector_store = await self.milvus_store.get_vector_store()
+            if embed_type == "document":
+                embed_model = ConversationMemoryStore.embed_model_document()
+            else:
+                embed_model = ConversationMemoryStore.embed_model_query()
+
+            _index = VectorStoreIndex.from_vector_store(
+                vector_store=vector_store, embed_model=embed_model, use_async=True
             )
-
-        vector_store = await self.milvus_store.get_vector_store()
-        if embed_type == "document":
-            embed_model = ConversationMemoryStore.embed_model_document()
-        else:
-            embed_model = ConversationMemoryStore.embed_model_query()
-
-        _index = VectorStoreIndex.from_vector_store(
-            vector_store=vector_store, embed_model=embed_model, use_async=True
-        )
-        return _index
+            return _index
+        except Exception as e:
+            raise MemoryStoreException(detail=str(e))
 
     async def _get_retriever(self) -> BaseRetriever:
         index = await self._get_index(embed_type="query")
@@ -142,6 +141,10 @@ class ConversationMemoryStore:
                 assistant_message=assistant_message
             )
             return True
+
+        except MemoryStoreException:
+            raise
+
         except Exception as e:
             raise MemoryStoreException(detail=str(e))
 
@@ -151,6 +154,10 @@ class ConversationMemoryStore:
         try:
             output = await self._show_result_with_retriever(query)
             return output
+
+        except MemoryStoreException:
+            raise
+
         except Exception as e:
             raise MemoryStoreException(detail=str(e))
 
