@@ -136,3 +136,8 @@ class ConversationMemoryStore:
         except Exception as ex:
             print(f"error: {ex}")
             return False
+
+
+class MemoryStoreException(HTTPException):
+    def __init__(self, detail: str = "Error occurred during conversation memory."):
+        super().__init__(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail)
