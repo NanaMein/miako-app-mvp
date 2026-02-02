@@ -1,7 +1,7 @@
 from typing import Optional, Union, Any
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction
-from dotenv import load_dotenv
+from weakref import WeakKeyDictionary
 from cachetools import LRUCache
 from pymilvus import AsyncMilvusClient
 from fastapi import HTTPException, status
@@ -29,19 +29,21 @@ VECTOR_CACHE = LRUCache(maxsize=1000)
 CACHE_FOR_LOCK = LRUCache(maxsize=1000)
 ASYNC_LOCK = asyncio.Lock()
 
-_ASYNC_MILVUS_CLIENT: Union[AsyncMilvusClient, None] = None
+_ASYNC_MILVUS_CLIENT = WeakKeyDictionary()
 _MILVUS_LOCK = asyncio.Lock()
 
 async def milvus_client():
-    global _ASYNC_MILVUS_CLIENT
-    if _ASYNC_MILVUS_CLIENT is None:
-        async with _MILVUS_LOCK:
-            if _ASYNC_MILVUS_CLIENT is None:
-                _ASYNC_MILVUS_CLIENT = AsyncMilvusClient(
-                    uri=CLIENT_URI,
-                    token=CLIENT_TOKEN
-                )
-    return _ASYNC_MILVUS_CLIENT
+    loop = asyncio.get_running_loop()
+
+    async with _MILVUS_LOCK:
+        _client = _ASYNC_MILVUS_CLIENT.get(loop)
+        if _client is None:
+            _client = AsyncMilvusClient(
+                uri=CLIENT_URI,
+                token=CLIENT_TOKEN
+            )
+            _ASYNC_MILVUS_CLIENT[loop] = _client
+        return _client
 
 
 class MilvusVectorStoreConnection:
