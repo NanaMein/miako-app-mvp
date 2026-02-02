@@ -104,20 +104,47 @@ class MilvusVectorStoreConnection:
             raise x
 
 
-    async def _collection_exist(self) -> bool:
+    async def _check_client_property_ttl(self):
         client = await milvus_client()
-        return await client.has_collection(collection_name=self.collection_name)
+        collection = await client.describe_collection(collection_name=self.collection_name)
+        props = collection.get("properties", {})
+        ttl = props.get("collection.ttl.seconds")
 
+        if isinstance(ttl, str) and ttl.isdigit():
+            ttl = int(ttl)
+        return ttl
 
-    async def _set_ttl_if_first_creation(self) -> None:
+    async def _should_alter_properties(self) -> bool:
         client = await milvus_client()
-        await client.alter_collection_properties(
-            collection_name=self.collection_name,
-            properties={"collection.ttl.seconds": self.default_ttl}
-        )
+        ttl = await self._check_client_property_ttl()
+
+        if self.default_ttl == 0:
+            should_alter_property = False
+
+        else:
+            if ttl is None:
+                should_alter_property = True
+
+            elif ttl == 0:
+                should_alter_property = False
+
+            elif ttl != self.default_ttl:
+                should_alter_property = True
+
+            else:
+                should_alter_property = False
+
+        if should_alter_property:
+            await client.alter_collection_properties(
+                collection_name=self.collection_name,
+                properties={"collection.ttl.seconds": self.default_ttl}
+            )
+            return True
+
+        return False
 
 
-    async def _core_vector_store_logic(self) -> MilvusVectorStore:
+    async def _core_vector_store_logic_version_1(self) -> MilvusVectorStore:
         if self._user_id in self.vector_cache:
             return self.vector_cache[self._user_id]
 
@@ -128,12 +155,9 @@ class MilvusVectorStoreConnection:
                 if isinstance(vector_store, MilvusVectorStore):
                     return vector_store
 
-                collection = await self._collection_exist()
-
                 new_vector_connection = self._vector_store_with_bm25()
 
-                if not collection:
-                    await self._set_ttl_if_first_creation()
+                await self._should_alter_properties()
 
                 self.vector_cache[self._user_id] = new_vector_connection
 
@@ -148,14 +172,14 @@ class MilvusVectorStoreConnection:
     async def _reconnection_and_retry_logic(self) -> MilvusVectorStore:
 
         try:
-            vector = await self._core_vector_store_logic()
+            vector = await self._core_vector_store_logic_version_1()
             return vector
         except HTTPException:
             pass
 
         try:
             self.vector_cache.pop(self._user_id, None)
-            vector = await self._core_vector_store_logic()
+            vector = await self._core_vector_store_logic_version_1()
             return vector
         except HTTPException as ex:
             raise HTTPException(
