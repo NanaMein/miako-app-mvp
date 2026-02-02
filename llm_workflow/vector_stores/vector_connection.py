@@ -1,4 +1,4 @@
-from typing import Optional, Union, Any
+from typing import Union, Any
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.vector_stores.milvus.utils import  BM25BuiltInFunction
 from weakref import WeakKeyDictionary
@@ -165,9 +165,3 @@ class MilvusVectorStoreConnection:
 
     async def get_vector_store(self) -> MilvusVectorStore:
         return await self._reconnection_and_retry_logic()
-
-
-
-
-load_dotenv()
-
