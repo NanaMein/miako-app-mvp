@@ -36,8 +36,6 @@ class ConversationMemoryStore:
 
     ):
         self._user_id = user_id
-        if ttl_hours == 0 and ttl_hours == 0:
-            self._ttl_hours, self._ttl_mins = .1, 9 #set to 15 mins as default or testing phase
         self._ttl_hours = ttl_hours
         self._ttl_mins = ttl_mins
 
