@@ -5,10 +5,10 @@ from weakref import WeakKeyDictionary
 from cachetools import LRUCache
 from pymilvus import AsyncMilvusClient
 from fastapi import HTTPException, status
-import os
-import asyncio
 from llm_workflow.config_files.config import workflow_settings
 from llm_workflow.config_files.locking import LockManager
+import asyncio
+import re
 
 
 CLIENT_URI=workflow_settings.CLIENT_URI.get_secret_value()
@@ -48,7 +48,7 @@ async def milvus_client():
 
 class MilvusVectorStoreConnection:
 
-    def __init__(self, user_id: Union[str, Any], default_ttl_hours: float = 0, default_ttl_mins: float = 1):
+    def __init__(self, user_id: Union[str, Any], default_ttl_hours: float = 0, default_ttl_mins: float = 0):
         self._user_id = user_id
         self._default_ttl_hours = default_ttl_hours
         self._default_ttl_min = default_ttl_mins
@@ -66,8 +66,8 @@ class MilvusVectorStoreConnection:
 
     @property
     def collection_name(self) -> str:
-        len_of_16_str = self._user_id.strip()[:20]
-        return f"Collection_Of_{len_of_16_str}_2025_2026"
+        corrected_id = re.sub(r"[^a-zA-Z0-9_]", "_", self._user_id)
+        return f"Collection_Of_{corrected_id}_2025_2026"
 
 
     @property
