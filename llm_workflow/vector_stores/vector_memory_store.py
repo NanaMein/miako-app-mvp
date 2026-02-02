@@ -28,13 +28,27 @@ SPLITTER = SentenceSplitter(chunk_size=360, chunk_overlap=60)
 
 class ConversationMemoryStore:
 
-    def __init__(self, user_id: str):
+    def __init__(
+        self,
+        user_id: str,
+        ttl_hours: float = 0,
+        ttl_mins: float = 0,
+
+    ):
         self._user_id = user_id
+        if ttl_hours == 0 and ttl_hours == 0:
+            self._ttl_hours, self._ttl_mins = .1, 9 #set to 15 mins as default or testing phase
+        self._ttl_hours = ttl_hours
+        self._ttl_mins = ttl_mins
 
 
     @property
     def milvus_store(self) -> MilvusVectorStoreConnection:
-        return MilvusVectorStoreConnection(user_id=self._user_id)
+        return MilvusVectorStoreConnection(
+            user_id=self._user_id,
+            default_ttl_hours=self._ttl_hours,
+            default_ttl_mins=self._ttl_mins,
+        )
 
     @staticmethod
     def embed_model_document():
