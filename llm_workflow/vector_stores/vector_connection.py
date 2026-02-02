@@ -46,7 +46,7 @@ async def milvus_client():
 
 class MilvusVectorStoreConnection:
 
-    def __init__(self, user_id: Union[str, Any], default_ttl_hours: float = 0, default_ttl_mins: int = 1):
+    def __init__(self, user_id: Union[str, Any], default_ttl_hours: float = 0, default_ttl_mins: float = 1):
         self._user_id = user_id
         self._default_ttl_hours = default_ttl_hours
         self._default_ttl_min = default_ttl_mins
@@ -75,9 +75,7 @@ class MilvusVectorStoreConnection:
 
     @property
     def default_ttl(self):
-        hours = int(self._default_ttl_hours * 3600)
-        mins = self._default_ttl_min * 60
-        return hours + mins
+        return int(self._default_ttl_hours * 3600) + int(self._default_ttl_min * 60)
 
 
     def _vector_store_with_bm25(self) -> MilvusVectorStore:
@@ -104,12 +102,12 @@ class MilvusVectorStoreConnection:
             raise x
 
 
-    async def _is_collection_name_exist(self) -> bool:
+    async def _collection_exist(self) -> bool:
         client = await milvus_client()
         return await client.has_collection(collection_name=self.collection_name)
 
 
-    async def _alter_if_collection_name_not_exist(self) -> None:
+    async def _set_ttl_if_first_creation(self) -> None:
         client = await milvus_client()
         await client.alter_collection_properties(
             collection_name=self.collection_name,
@@ -124,19 +122,16 @@ class MilvusVectorStoreConnection:
         lock = await self._lock.get_lock()
         async with lock:
             try:
-                if self._user_id in self.vector_cache:
-                    return self.vector_cache[self._user_id]
-
                 vector_store = self.vector_cache.get(self._user_id)
-                if vector_store:
+                if isinstance(vector_store, MilvusVectorStore):
                     return vector_store
 
-                existing_collection = await self._is_collection_name_exist()
+                collection = await self._collection_exist()
 
-                new_vector_connection: MilvusVectorStore = self._vector_store_with_bm25()
+                new_vector_connection = self._vector_store_with_bm25()
 
-                if not existing_collection:
-                    await self._alter_if_collection_name_not_exist()
+                if not collection:
+                    await self._set_ttl_if_first_creation()
 
                 self.vector_cache[self._user_id] = new_vector_connection
 
