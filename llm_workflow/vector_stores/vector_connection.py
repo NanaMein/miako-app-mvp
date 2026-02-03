@@ -115,13 +115,29 @@ class MilvusVectorStoreConnection:
     async def _check_client_property_ttl(self) -> int:
 
         client = await milvus_client()
+
+        if not await client.has_collection(collection_name=self.collection_name):
+            return 0
+
         collection = await client.describe_collection(collection_name=self.collection_name)
         props = collection.get("properties", {})
+
         ttl = props.get("collection.ttl.seconds")
 
-        if isinstance(ttl, str) and ttl.isdigit():
-            ttl = int(ttl)
-        return ttl
+        if ttl is None:
+            return 0
+
+        if isinstance(ttl, str):
+            stripped = ttl.strip()
+            if stripped.isdigit():
+                return int(stripped)
+            else:
+                return 0
+
+        if isinstance(ttl, int) and ttl > 0:
+            return ttl
+
+        return 0
 
     async def _should_alter_properties(self) -> bool:
         client = await milvus_client()
