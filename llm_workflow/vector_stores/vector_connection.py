@@ -76,16 +76,16 @@ class MilvusVectorStoreConnection:
 
 
     @property
-    def vector_cache(self):
+    def vector_cache(self) -> LRUCache:
         return VECTOR_CACHE
 
 
     @property
-    def default_ttl(self):
+    def default_ttl(self) -> int:
         return int(self._default_ttl_hours * 3600) + int(self._default_ttl_min * 60)
 
 
-    def _vector_store_with_bm25(self) -> MilvusVectorStore:
+    def _vector_store_with_bm25(self) -> Union[MilvusVectorStore, HTTPException]:
         try:
             vector_store = MilvusVectorStore(
                 uri=CLIENT_URI,
@@ -105,11 +105,15 @@ class MilvusVectorStoreConnection:
                 hybrid_ranker_params={"k": 60}
             )
             return vector_store
-        except Exception as x:
-            raise x
+        except Exception as vector_err:
+            return HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Internal Milvus collection error: {vector_err}"
+            )
 
 
-    async def _check_client_property_ttl(self):
+    async def _check_client_property_ttl(self) -> int:
+
         client = await milvus_client()
         collection = await client.describe_collection(collection_name=self.collection_name)
         props = collection.get("properties", {})
