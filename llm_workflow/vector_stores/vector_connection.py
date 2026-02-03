@@ -198,18 +198,22 @@ class MilvusVectorStoreConnection:
         try:
             vector = await self._core_vector_store_logic_version_1()
             return vector
-        except HTTPException:
-            pass
 
-        try:
+        except HTTPException as first_err:
             self.vector_cache.pop(self._user_id, None)
-            vector = await self._core_vector_store_logic_version_1()
-            return vector
-        except HTTPException as ex:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Internal error: {ex}"
-            )
+
+            try:
+                vector = await self._core_vector_store_logic_version_1()
+                return vector
+
+            except HTTPException as second_err:
+                raise second_err
+
+            except Exception as final_err:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Critical failure after retry: {final_err}"
+                )
 
     async def get_vector_store(self) -> MilvusVectorStore:
         return await self._reconnection_and_retry_logic()
