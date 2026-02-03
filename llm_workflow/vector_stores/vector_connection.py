@@ -141,23 +141,17 @@ class MilvusVectorStoreConnection:
 
     async def _should_alter_properties(self) -> bool:
         client = await milvus_client()
-        ttl = await self._check_client_property_ttl()
+        current_ttl = await self._check_client_property_ttl()
+
+        should_alter_property = False
 
         if self.default_ttl == 0:
-            should_alter_property = False
+            if current_ttl != 0:
+                should_alter_property = True
 
         else:
-            if ttl is None:
+            if current_ttl != self.default_ttl:
                 should_alter_property = True
-
-            elif ttl == 0:
-                should_alter_property = False
-
-            elif ttl != self.default_ttl:
-                should_alter_property = True
-
-            else:
-                should_alter_property = False
 
         if should_alter_property:
             await client.alter_collection_properties(
@@ -165,7 +159,6 @@ class MilvusVectorStoreConnection:
                 properties={"collection.ttl.seconds": self.default_ttl}
             )
             return True
-
         return False
 
 
