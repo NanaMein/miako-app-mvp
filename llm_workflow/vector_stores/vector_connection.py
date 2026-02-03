@@ -27,15 +27,20 @@ BM25FUNCTION = BM25BuiltInFunction(
 )
 VECTOR_CACHE = LRUCache(maxsize=1000)
 CACHE_FOR_LOCK = LRUCache(maxsize=1000)
-ASYNC_LOCK = asyncio.Lock()
+GLOBAL_MASTER_LOCK = asyncio.Lock()
 
 _ASYNC_MILVUS_CLIENT = WeakKeyDictionary()
-_MILVUS_LOCK = asyncio.Lock()
+_MILVUS_LOCK = WeakKeyDictionary()
 
 async def milvus_client():
     loop = asyncio.get_running_loop()
 
-    async with _MILVUS_LOCK:
+    if loop not in _MILVUS_LOCK:
+        _MILVUS_LOCK[loop] = asyncio.Lock()
+
+    milvus_lock = _MILVUS_LOCK[loop]
+
+    async with milvus_lock:
         _client = _ASYNC_MILVUS_CLIENT.get(loop)
         if _client is None:
             _client = AsyncMilvusClient(
@@ -54,7 +59,7 @@ class MilvusVectorStoreConnection:
         self._default_ttl_min = default_ttl_mins
         self._lock = LockManager(
             user_id=self._user_id,
-            asyncio_lock=ASYNC_LOCK,
+            asyncio_lock=GLOBAL_MASTER_LOCK,
             cache=CACHE_FOR_LOCK
         )
 
