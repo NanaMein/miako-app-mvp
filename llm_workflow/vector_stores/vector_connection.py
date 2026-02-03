@@ -164,22 +164,28 @@ class MilvusVectorStoreConnection:
 
     async def _core_vector_store_logic_version_1(self) -> MilvusVectorStore:
         if self._user_id in self.vector_cache:
+            await self._should_alter_properties()
             return self.vector_cache[self._user_id]
 
         lock = await self._lock.get_lock()
         async with lock:
             try:
-                vector_store = self.vector_cache.get(self._user_id)
-                if isinstance(vector_store, MilvusVectorStore):
-                    return vector_store
+                if self._user_id in self.vector_cache:
+                    await self._should_alter_properties()
+                    return self.vector_cache[self._user_id]
 
                 new_vector_connection = self._vector_store_with_bm25()
+                if isinstance(new_vector_connection, HTTPException):
+                    raise new_vector_connection
 
                 await self._should_alter_properties()
 
                 self.vector_cache[self._user_id] = new_vector_connection
 
                 return new_vector_connection
+
+            except HTTPException as http_ex:
+                raise http_ex
 
             except Exception as ex:
                 raise HTTPException(
