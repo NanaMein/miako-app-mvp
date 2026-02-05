@@ -43,6 +43,7 @@ class MainFlowStates(BaseModel):
 class LLMWorkflow(Flow[MainFlowStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
+
     @property
     def translation_llm(self) -> ChatCompletionsClass:
         return ChatCompletionsClass()
@@ -59,13 +60,9 @@ class LLMWorkflow(Flow[MainFlowStates]):
     @start()
     async def is_it_english(self):
         system_prompt = LIBRARY.get_prompt("language_classifier.gemini_series.version_1")
-        chatbot = ChatCompletionsClass()
-        chatbot.add_system(system_prompt)
-        chatbot.add_user(self.state.input_message)
-        chat_response = await chatbot.groq_scout(
-            max_completion_tokens=1,
-        )
-        return chat_response
+        self.language_classifier_llm.add_system(content=system_prompt)
+        self.language_classifier_llm.add_user(content=self.state.input_message)
+        return await self.language_classifier_llm.groq_scout(max_completion_tokens=1)
 
     @router(is_it_english)
     def english_router(self, answer):
@@ -93,14 +90,10 @@ class LLMWorkflow(Flow[MainFlowStates]):
     @listen("ROUTER_TRANSLATE")
     async def translating_user_query(self):
         print("TRANSLATE")
-
         system_prompt = LIBRARY.get_prompt("translation_layer.qwen_series.version_1")
-        chatbot = ChatCompletionsClass()
-        chatbot.add_system(system_prompt)
-        chatbot.add_user(self.state.input_message)
-
-        chat_response = await chatbot.groq_maverick()
-        return chat_response
+        self.translation_llm.add_system(system_prompt)
+        self.translation_llm.add_user(self.state.input_message)
+        return await self.translation_llm.groq_maverick()
 
 
     @listen("ROUTER_DENIED")
@@ -111,12 +104,9 @@ class LLMWorkflow(Flow[MainFlowStates]):
     @listen(or_(english_user_query, translating_user_query, unknown_category))
     async def intent_classifier(self, answer):
         system_prompt = LIBRARY.get_prompt("intent_classifier.gemini_series.version_1")
-
-        chatbot = ChatCompletionsClass()
-        chatbot.add_system(system_prompt)
-        chatbot.add_user(answer)
-
-        chat_response = await chatbot.groq_maverick()
+        self.intent_classifier_llm.add_system(system_prompt)
+        self.intent_classifier_llm.add_user(answer)
+        chat_response = await self.intent_classifier_llm.groq_maverick()
         intent_data = IntentResponse.model_validate_json(chat_response)
         return intent_data
 
