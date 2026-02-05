@@ -43,6 +43,18 @@ class MainFlowStates(BaseModel):
 class LLMWorkflow(Flow[MainFlowStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
+    @property
+    def translation_llm(self) -> ChatCompletionsClass:
+        return ChatCompletionsClass()
+
+    @property
+    def language_classifier_llm(self) -> ChatCompletionsClass:
+        return ChatCompletionsClass()
+
+    @property
+    def intent_classifier_llm(self) -> ChatCompletionsClass:
+        return ChatCompletionsClass()
+
 
     @start()
     async def is_it_english(self):
