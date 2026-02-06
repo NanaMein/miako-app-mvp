@@ -5,7 +5,7 @@ from llama_index.core.base.base_retriever import BaseRetriever
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.cohere import CohereEmbedding
 from llama_index.core import VectorStoreIndex
-from llm_workflow.vector_stores.vector_connection import MilvusVectorStoreConnection
+from llm_workflow.memory.long_term_memory.vector_connection import MilvusVectorStoreConnection
 from llm_workflow.config_files.config import workflow_settings
 from llama_index.core.prompts import PromptTemplate
 from datetime import datetime, timezone

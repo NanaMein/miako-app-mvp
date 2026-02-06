@@ -8,7 +8,7 @@ from schemas.message_schema import MessageBaseSchema, Role
 from databases.database import get_session
 from llm_workflow.workflows.flow_chatbot import FlowMainWorkflow
 from fastapi import FastAPI, HTTPException, status, Depends
-from llm_workflow.chat_completions.groq_llm import ChatCompletionsClass
+from llm_workflow.llm.groq_llm import ChatCompletionsClass
 from llm_workflow.workflows.main_workflow import MainFlowStates, LLMWorkflow, flow_kickoff
 
 flow_ = LLMWorkflow()
