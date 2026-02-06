@@ -12,13 +12,14 @@ from crewai.flow.flow import FlowStreamingOutput
 from typing import Literal
 
 
+class AppResources:
+    current_file_dir = Path(__file__).parent
+    project_root = current_file_dir.parent
+    prompt_dir = project_root / "prompts"
+    prompts_path = prompt_dir / "prompts.yaml"
+    library = PromptLibrary(file_path=str(prompts_path))
 
-CURRENT_FILE_DIR = Path(__file__).parent
-PROJECT_ROOT = CURRENT_FILE_DIR.parent
-PROMPT_DIR = PROJECT_ROOT / "prompts"
-PROMPTS_PATH = PROMPT_DIR / "prompts.yaml"
-LIBRARY = PromptLibrary(file_path=str(PROMPTS_PATH))
-MEMORY_STORE = ConversationMemoryStore()
+RESOURCES = AppResources()
 
 
 def date_time_now() -> str:
@@ -57,8 +58,8 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @start()
     async def is_it_english(self):
-        system_prompt = LIBRARY.get_prompt("language_classifier.gemini_series.version_1")
-        self.language_classifier_llm.add_system(content=system_prompt)
+        system_message = RESOURCES.library.get_prompt("language_classifier.gemini_series.version_1")
+        self.language_classifier_llm.add_system(content=system_message)
         self.language_classifier_llm.add_user(content=self.state.input_message)
         return await self.language_classifier_llm.groq_scout(max_completion_tokens=1)
 
@@ -88,7 +89,7 @@ class LLMWorkflow(Flow[MainFlowStates]):
     @listen("ROUTER_TRANSLATE")
     async def translating_user_query(self):
         print("TRANSLATE")
-        system_prompt = LIBRARY.get_prompt("translation_layer.qwen_series.version_1")
+        system_prompt = RESOURCES.library.get_prompt("translation_layer.qwen_series.version_1")
         self.translation_llm.add_system(system_prompt)
         self.translation_llm.add_user(self.state.input_message)
         return await self.translation_llm.groq_maverick()
@@ -101,7 +102,7 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @listen(or_(english_user_query, translating_user_query, unknown_category))
     async def intent_classifier(self, answer):
-        system_prompt = LIBRARY.get_prompt("intent_classifier.gemini_series.version_1")
+        system_prompt = RESOURCES.library.get_prompt("intent_classifier.gemini_series.version_1")
         self.intent_classifier_llm.add_system(system_prompt)
         self.intent_classifier_llm.add_user(answer)
         chat_response = await self.intent_classifier_llm.groq_maverick()
