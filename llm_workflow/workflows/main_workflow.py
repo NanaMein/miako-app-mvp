@@ -50,13 +50,16 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
 
     @property
-    def language_classifier_llm(self) -> ChatCompletionsClass:
-        return ChatCompletionsClass()
-
-
+    def message_storage(self):
+        return MessageStorage(self.state.input_user_id)
 
 
     @start()
+    async def safety_content_moderator(self):
+        pass #For development only, assume there is a content moderator here.
+
+
+    @listen(safety_content_moderator)
     async def is_it_english(self):
         system_message = RESOURCES.library.get_prompt("language_classifier.gemini_series.version_1")
         self.language_classifier_llm.add_system(content=system_message)
