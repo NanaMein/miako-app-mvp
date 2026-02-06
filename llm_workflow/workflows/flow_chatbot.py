@@ -260,7 +260,9 @@ async def run_concurrent():
     for it in range (13):
         message = await s.get_choice_async()
         print(f"Message {str(s.state)}: {message}")
-        task = flow_kickoff(input_user_id=f"test_user_{s.state}", input_message=message)
+        # task = flow_kickoff(input_user_id=f"test_user_{s.state}", input_message=message)
+        flow = FlowKickOff(user_id=f"test_user_{s.state}" , message=message)
+        task = flow.run()
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -277,21 +279,27 @@ async def run_concurrent_all_language():
     for tl in range (range_num):
         tagalog_message = await tagalog.get_sample()
         print(f"Message Tagalog: {str(tagalog.state)}: {tagalog_message}")
-        task = flow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=tagalog_message)
+        flow = FlowKickOff(user_id=f"test_user_{tagalog.state}", message=tagalog_message)
+        # task = flow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=tagalog_message)
+        task = flow.run()
         tasks.append(task)
 
     lao = SampleStates(sample=SAMPLE_LAO, state=state_num)
     for la in range(range_num):
         lao_message = await lao.get_sample()
         print(f"Message Lao: {str(lao.state)}: {lao_message}")
-        task = flow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=lao_message)
+        # task = flow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=lao_message)
+        flow = FlowKickOff(user_id=f"test_user_{lao.state}", message=lao_message)
+        task = flow.run()
         tasks.append(task)
 
     burmese = SampleStates(sample=SAMPLE_BURMESE, state=state_num)
     for bu in range(range_num):
         burmese_message = await burmese.get_sample()
         print(f"Message Burmese: {str(burmese.state)}: {burmese_message}")
-        task = flow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=burmese_message)
+        # task = flow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=burmese_message)
+        flow = FlowKickOff(user_id=f"test_user_{burmese.state}", message=burmese_message)
+        task = flow.run()
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -311,7 +319,8 @@ class Timer:
 
 if __name__ == "__main__":
     t = Timer()
-    asyncio.run(run_concurrent_all_language())
+    all_lang = asyncio.run(run_concurrent_all_language())
+    print("Type of the output:", type(all_lang))
     print("~-/*" * 50)
     print(f"Execution time in seconds: {t.now()}")
     print("~-/*" * 50)
