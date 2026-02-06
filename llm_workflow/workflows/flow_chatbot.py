@@ -11,7 +11,7 @@ from models.message_model import Message
 from schemas.message_schema import Role
 from sqlalchemy.ext.asyncio import AsyncSession
 from llm_workflow.memory.long_term_memory.memory_store import ConversationMemoryStore
-from llm_workflow.workflows.main_workflow import flow_kickoff
+from llm_workflow.workflows.main_workflow import FlowKickOff
 import time
 import asyncio
 
@@ -260,8 +260,7 @@ async def run_concurrent():
     for it in range (13):
         message = await s.get_choice_async()
         print(f"Message {str(s.state)}: {message}")
-        # task = flow_kickoff(input_user_id=f"test_user_{s.state}", input_message=message)
-        flow = FlowKickOff(user_id=f"test_user_{s.state}" , message=message)
+        flow = FlowKickOff(user_id=f"test_user_{s.state}", message=message)
         task = flow.run()
         tasks.append(task)
 
@@ -280,7 +279,6 @@ async def run_concurrent_all_language():
         tagalog_message = await tagalog.get_sample()
         print(f"Message Tagalog: {str(tagalog.state)}: {tagalog_message}")
         flow = FlowKickOff(user_id=f"test_user_{tagalog.state}", message=tagalog_message)
-        # task = flow_kickoff(input_user_id=f"test_user_{tagalog.state}", input_message=tagalog_message)
         task = flow.run()
         tasks.append(task)
 
@@ -288,7 +286,6 @@ async def run_concurrent_all_language():
     for la in range(range_num):
         lao_message = await lao.get_sample()
         print(f"Message Lao: {str(lao.state)}: {lao_message}")
-        # task = flow_kickoff(input_user_id=f"test_user_{lao.state}", input_message=lao_message)
         flow = FlowKickOff(user_id=f"test_user_{lao.state}", message=lao_message)
         task = flow.run()
         tasks.append(task)
@@ -297,7 +294,6 @@ async def run_concurrent_all_language():
     for bu in range(range_num):
         burmese_message = await burmese.get_sample()
         print(f"Message Burmese: {str(burmese.state)}: {burmese_message}")
-        # task = flow_kickoff(input_user_id=f"test_user_=={burmese.state}", input_message=burmese_message)
         flow = FlowKickOff(user_id=f"test_user_{burmese.state}", message=burmese_message)
         task = flow.run()
         tasks.append(task)
