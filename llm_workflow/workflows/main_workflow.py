@@ -8,7 +8,7 @@ from llm_workflow.llm.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
 from pathlib import Path
 from fastapi import status, HTTPException
-from crewai.flow.flow import FlowStreamingOutput
+from abc import ABC, abstractmethod
 from typing import Literal
 
 
@@ -37,6 +37,7 @@ class IntentResponse(BaseModel):
 class MainFlowStates(BaseModel):
     input_message: str = Field(default="", description="User input message to llm workflow")
     input_user_id: str = Field(default="")
+    intent_data: Optional[IntentResponse] = Field(default=None, description="Current intent data after translation")
     async_session: Optional[AsyncSession] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
     time_stamp: str = Field(default_factory=lambda: date_time_now())
@@ -110,6 +111,7 @@ class LLMWorkflow(Flow[MainFlowStates]):
         self.intent_classifier_llm.add_user(answer)
         chat_response = await self.intent_classifier_llm.groq_maverick()
         intent_data = IntentResponse.model_validate_json(chat_response)
+        self.state.intent_data = intent_data
         return intent_data
 
     @router(intent_classifier)
@@ -144,20 +146,40 @@ class LLMWorkflow(Flow[MainFlowStates]):
         return "system OP SUCCESS"
 
 
-async def flow_kickoff(
-        input_user_id: str,
-        input_message: str,
-        async_session: Optional[AsyncSession] = None
-) -> Union[FlowStreamingOutput, Any]:
+class FlowABC(ABC):
+    def __init__(
+            self,
+            user_id: Union[str, Any],
+            message: str,
+    ) -> None:
+        self.user_id = user_id
+        self.message = message
 
-    inputs = {
-        "input_user_id": input_user_id,
-        "input_message": input_message,
-        "async_session": async_session
-    }
-    try:
-        _flow_kickoff = LLMWorkflow()
-        flow_result: FlowStreamingOutput = await _flow_kickoff.kickoff_async(inputs=inputs)
-        return flow_result
-    except Exception as e:
-        HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Bad request: {e}")
+    @abstractmethod
+    def _inputs(self) -> dict[str, Any]:
+        pass
+
+    @abstractmethod
+    async def run(self) -> str:
+        pass
+
+class FlowKickOff(FlowABC):
+    def __init__(self, user_id: Union[str, Any], message: str) -> None:
+        super().__init__(user_id, message)
+        self._flow = LLMWorkflow()
+
+    def _inputs(self) -> dict[str, Any]:
+        return {
+            "input_user_id": self.user_id,
+            "input_message": self.message,
+        }
+
+    async def run(self) -> str:
+        try:
+            output = await self._flow.kickoff_async(inputs=self._inputs())
+            if not isinstance(output, str):
+                raise Exception("No output")
+            return output
+
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Bad request: {e}")
