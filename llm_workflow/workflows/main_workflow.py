@@ -3,7 +3,7 @@ from crewai.flow import Flow, start, listen, router, or_
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from llm_workflow.memory.long_term_memory.memory_store import ConversationMemoryStore
+from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.llm.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
 from pathlib import Path
