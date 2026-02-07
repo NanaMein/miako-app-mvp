@@ -6,18 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.llm.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
-from pathlib import Path
 from fastapi import status, HTTPException
 from abc import ABC, abstractmethod
 from typing import Literal
 
 
 class AppResources:
-    current_file_dir = Path(__file__).parent
-    project_root = current_file_dir.parent
-    prompt_dir = project_root / "prompts"
-    prompts_path = prompt_dir / "prompts.yaml"
-    library = PromptLibrary(file_path=str(prompts_path))
+    # current_file_dir = Path(__file__).parent
+    # project_root = current_file_dir.parent
+    # prompt_dir = project_root / "prompts"
+    # prompts_path = prompt_dir / "prompts.yaml"
+    # library = PromptLibrary(file_path=str(prompts_path))
+    library = PromptLibrary()
 
 RESOURCES = AppResources()
 
