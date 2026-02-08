@@ -1,5 +1,6 @@
 from typing import Optional, Any, Union
 from crewai.flow import Flow, start, listen, router, or_
+from crewai.types.streaming import FlowStreamingOutput
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,8 +8,8 @@ from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.llm.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
 from fastapi import status, HTTPException
-from abc import ABC, abstractmethod
-from typing import Literal
+from typing import Literal, Protocol
+from dataclasses import dataclass, asdict
 
 
 class AppResources:
@@ -143,43 +144,72 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
     @listen("SYSTEM_OP")
     def system_op_route(self):
-        return "system OP SUCCESS"
+        return self.state["raw_intent"]
 
 
-class FlowABC(ABC):
-    def __init__(
-            self,
-            user_id: Union[str, Any],
-            message: str,
-    ) -> None:
+
+class AdaptiveConversationEngine(LLMWorkflow):
+    """
+    Temporary name for the LLMWorkflow class. Would integrate it when after i done git issue and pr.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+
+
+@dataclass
+class InputData:
+    input_message: str
+    input_user_id: str
+
+
+class ChatEngineProtocol(Protocol):
+
+    user_id: Union[str, Any]
+    input_message: str
+
+    @property
+    def _input_data(self) -> dict[str, Any]: ...
+
+    @property
+    def flow_engine(self) -> Optional[Flow[MainFlowStates]]: ...
+
+    async def run(self) -> Union[FlowStreamingOutput, str, None]: ...
+
+
+class AdaptiveChatbot:
+    def __init__(self, user_id: Union[str, Any], input_message: str):
         self.user_id = user_id
-        self.message = message
+        self.input_message = input_message
+        self._engine: Optional[AdaptiveConversationEngine] = None
 
-    @abstractmethod
-    def _inputs(self) -> dict[str, Any]:
-        pass
 
-    @abstractmethod
-    async def run(self) -> str:
-        pass
+    @property
+    def flow_engine(self) -> Optional[Flow[MainFlowStates]]:
+        if self._engine is None:
+            self._engine = AdaptiveConversationEngine()
+        return self._engine
 
-class FlowKickOff(FlowABC):
-    def __init__(self, user_id: Union[str, Any], message: str) -> None:
-        super().__init__(user_id, message)
-        self._flow = LLMWorkflow()
+    @property
+    def _input_data(self) -> dict[str, Any]:
+        inputs = InputData(input_user_id=self.user_id, input_message=self.input_message)
+        return asdict(inputs)
 
-    def _inputs(self) -> dict[str, Any]:
-        return {
-            "input_user_id": self.user_id,
-            "input_message": self.message,
-        }
-
-    async def run(self) -> str:
+    async def run(self) -> Union[FlowStreamingOutput, str, None]:
         try:
-            output = await self._flow.kickoff_async(inputs=self._inputs())
-            if not isinstance(output, str):
+            response = await self.flow_engine.kickoff_async(inputs=self._input_data)
+            if response is None:
                 raise Exception("No output")
-            return output
-
+            return response
         except Exception as e:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Bad request: {e}")
+            raise e
+
+class ChatbotExecutor:
+    def __init__(self, chat: ChatEngineProtocol):
+        self.chat = chat
+
+    async def execute(self):
+        return await self.chat.run()
+
+
