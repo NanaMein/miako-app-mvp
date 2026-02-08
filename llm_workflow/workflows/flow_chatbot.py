@@ -11,7 +11,7 @@ from models.message_model import Message
 from schemas.message_schema import Role
 from sqlalchemy.ext.asyncio import AsyncSession
 from llm_workflow.memory.long_term_memory.memory_store import ConversationMemoryStore
-from llm_workflow.workflows.main_workflow import FlowKickOff
+from llm_workflow.workflows.main_workflow import AdaptiveChatbot, ChatbotExecutor
 import time
 import asyncio
 
@@ -260,8 +260,9 @@ async def run_concurrent():
     for it in range (13):
         message = await s.get_choice_async()
         print(f"Message {str(s.state)}: {message}")
-        flow = FlowKickOff(user_id=f"test_user_{s.state}", message=message)
-        task = flow.run()
+        chatbot = AdaptiveChatbot(user_id=f"test_user_{s.state}", input_message=message)
+        flow = ChatbotExecutor(chatbot)
+        task = flow.execute()
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -278,24 +279,27 @@ async def run_concurrent_all_language():
     for tl in range (range_num):
         tagalog_message = await tagalog.get_sample()
         print(f"Message Tagalog: {str(tagalog.state)}: {tagalog_message}")
-        flow = FlowKickOff(user_id=f"test_user_{tagalog.state}", message=tagalog_message)
-        task = flow.run()
+        chatbot = AdaptiveChatbot(user_id=f"test_user_{tagalog.state}", input_message=tagalog_message)
+        flow = ChatbotExecutor(chatbot)
+        task = flow.execute()
         tasks.append(task)
 
     lao = SampleStates(sample=SAMPLE_LAO, state=state_num)
     for la in range(range_num):
         lao_message = await lao.get_sample()
         print(f"Message Lao: {str(lao.state)}: {lao_message}")
-        flow = FlowKickOff(user_id=f"test_user_{lao.state}", message=lao_message)
-        task = flow.run()
+        chatbot = AdaptiveChatbot(user_id=f"test_user_{lao.state}", input_message=lao_message)
+        flow = ChatbotExecutor(chatbot)
+        task = flow.execute()
         tasks.append(task)
 
     burmese = SampleStates(sample=SAMPLE_BURMESE, state=state_num)
     for bu in range(range_num):
         burmese_message = await burmese.get_sample()
         print(f"Message Burmese: {str(burmese.state)}: {burmese_message}")
-        flow = FlowKickOff(user_id=f"test_user_{burmese.state}", message=burmese_message)
-        task = flow.run()
+        chatbot = AdaptiveChatbot(user_id=f"test_user_{burmese.state}", input_message=burmese_message)
+        flow = ChatbotExecutor(chatbot)
+        task = flow.execute()
         tasks.append(task)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)

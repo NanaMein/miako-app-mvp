@@ -9,9 +9,9 @@ from databases.database import get_session
 from llm_workflow.workflows.flow_chatbot import FlowMainWorkflow
 from fastapi import FastAPI, HTTPException, status, Depends
 from llm_workflow.llm.groq_llm import ChatCompletionsClass
-from llm_workflow.workflows.main_workflow import MainFlowStates, LLMWorkflow, flow_kickoff
+from llm_workflow.workflows.main_workflow import ChatbotExecutor, AdaptiveChatbot
 
-flow_ = LLMWorkflow()
+# flow_ = LLMWorkflow()
 app = FastAPI()
 
 
@@ -60,12 +60,6 @@ async def clear_message(session: AsyncSession = Depends(get_session)):
     await session.commit()
 
 
-async def inputs_test(**kwargs):
-    return await flow_.kickoff_async(inputs={**kwargs})
-
-class FlowService:
-    def __init__(self, **kwargs):
-        self.service=flow_.kickoff_async(inputs={**kwargs})
 
 class PayloadValidation(BaseModel):
     message: str
@@ -80,13 +74,12 @@ async def flow_send():
 @app.post("/flow-main-send", response_model=PayloadValidation)
 async def flow_send(payload: PayloadValidation, session: AsyncSession = Depends(get_session)):
     try:
-
-        flow_serve = FlowService(
-            input_user_id="test",
-            input_message=payload.message,
-            async_session=session
+        chatbot = AdaptiveChatbot(
+            user_id="test",
+            input_message=payload.message
         )
-        service = await flow_serve.service
+        chat_resp = ChatbotExecutor(chatbot)
+        service = await chat_resp.execute()
         return PayloadValidation(message=service)
     except Exception as ex:
         raise HTTPException(
@@ -97,12 +90,13 @@ async def flow_send(payload: PayloadValidation, session: AsyncSession = Depends(
 @app.post("/v1/flow-main-send", response_model=PayloadValidation)
 async def flow_send(payload: PayloadValidation, session: AsyncSession = Depends(get_session)):
     try:
-        flow_object = await flow_kickoff(
-            input_user_id="test",
-            input_message=payload.message,
-            async_session=session
+        chatbot = AdaptiveChatbot(
+            user_id="test",
+            input_message=payload.message
         )
-        return PayloadValidation(message=flow_object)
+        chat_resp = ChatbotExecutor(chatbot)
+        message = await chat_resp.execute()
+        return PayloadValidation(message=message)
     except Exception as ex:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

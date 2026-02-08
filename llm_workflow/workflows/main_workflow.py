@@ -43,7 +43,7 @@ class MainFlowStates(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     time_stamp: str = Field(default_factory=lambda: date_time_now())
 
-class LLMWorkflow(Flow[MainFlowStates]):
+class AdaptiveConversationEngine(Flow[MainFlowStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self.language_classifier_llm = ChatCompletionsClass()
@@ -148,15 +148,6 @@ class LLMWorkflow(Flow[MainFlowStates]):
 
 
 
-class AdaptiveConversationEngine(LLMWorkflow):
-    """
-    Temporary name for the LLMWorkflow class. Would integrate it when after i done git issue and pr.
-    """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-
-
 
 @dataclass
 class InputData:
@@ -204,6 +195,7 @@ class AdaptiveChatbot:
             return response
         except Exception as e:
             raise e
+
 
 class ChatbotExecutor:
     def __init__(self, chat: ChatEngineProtocol):
