@@ -10,14 +10,12 @@ from llm_workflow.config_files.config import workflow_settings
 from llama_index.core.prompts import PromptTemplate
 from datetime import datetime, timezone
 from llm_workflow.prompts.prompt_library import PromptLibrary
-from pathlib import Path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-PATH_DIR=str(BASE_DIR / "prompts" / "prompts.yaml")
 
 
-LIB = PromptLibrary(file_path=PATH_DIR)
+
+LIB = PromptLibrary()
 
 PRESENTATION_NODE = PromptTemplate(LIB.get_prompt("template.for_node"))
 PRESENTATION_MESSAGE = PromptTemplate(LIB.get_prompt("template.for_message"))
