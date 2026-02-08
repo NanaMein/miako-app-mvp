@@ -27,6 +27,14 @@ def date_time_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+
+@dataclass
+class InputData:
+    input_message: str
+    input_user_id: str
+
+
+
 class IntentResponse(BaseModel):
     reasoning: str
     confidence: float
@@ -39,9 +47,26 @@ class MainFlowStates(BaseModel):
     input_message: str = Field(default="", description="User input message to llm workflow")
     input_user_id: str = Field(default="")
     intent_data: Optional[IntentResponse] = Field(default=None, description="Current intent data after translation")
+    unparsed_intent_data: str = ""
     async_session: Optional[AsyncSession] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
     time_stamp: str = Field(default_factory=lambda: date_time_now())
+
+
+class ChatEngineProtocol(Protocol):
+
+    user_id: Union[str, Any]
+    input_message: str
+
+    @property
+    def _input_data(self) -> dict[str, Any]: ...
+
+    @property
+    def flow_engine(self) -> Flow[BaseModel]: ...
+
+    async def run(self) -> Union[FlowStreamingOutput, str, None]: ...
+
+
 
 class AdaptiveConversationEngine(Flow[MainFlowStates]):
     def __init__(self, **kwargs: Any):
@@ -111,14 +136,18 @@ class AdaptiveConversationEngine(Flow[MainFlowStates]):
         self.intent_classifier_llm.add_system(system_prompt)
         self.intent_classifier_llm.add_user(answer)
         chat_response = await self.intent_classifier_llm.groq_maverick()
-        intent_data = IntentResponse.model_validate_json(chat_response)
-        self.state.intent_data = intent_data
-        return intent_data
+        return self.parsing_intent_data(input_intent=chat_response)
+
+    def parsing_intent_data(self, input_intent: str):
+        self.state.unparsed_intent_data = input_intent
+        intent_json_data = IntentResponse.model_validate_json(input_intent)
+        self.state.intent_data = intent_json_data
+        return intent_json_data
+
 
     @router(intent_classifier)
-    def intent_router(self, _intent_data):
-        intent_object: IntentResponse = _intent_data
-        intent_action = intent_object.action
+    def intent_router(self, _intent_data: IntentResponse):
+        intent_action = _intent_data.action
         if intent_action == "web_search":
             return "WEB_SEARCH"
         elif intent_action == "rag_query":
@@ -132,52 +161,34 @@ class AdaptiveConversationEngine(Flow[MainFlowStates]):
 
     @listen("WEB_SEARCH")
     def web_search_route(self):
-        return "web search SUCCESS"
+        return self.state.intent_data
 
     @listen("DIRECT_REPLY")
     def direct_reply_route(self):
-        return "direct reply SUCCESS"
+        return self.state.intent_data
 
     @listen("RAG_QUERY")
     def rag_query_route(self):
-        return "rag query SUCCESS"
+        return self.state.intent_data
 
     @listen("SYSTEM_OP")
     def system_op_route(self):
-        return self.state["raw_intent"]
+        return self.state.intent_data
 
-
-
-
-@dataclass
-class InputData:
-    input_message: str
-    input_user_id: str
-
-
-class ChatEngineProtocol(Protocol):
-
-    user_id: Union[str, Any]
-    input_message: str
-
-    @property
-    def _input_data(self) -> dict[str, Any]: ...
-
-    @property
-    def flow_engine(self) -> Optional[Flow[MainFlowStates]]: ...
-
-    async def run(self) -> Union[FlowStreamingOutput, str, None]: ...
+    @listen(or_(web_search_route, direct_reply_route, rag_query_route, system_op_route))
+    def mock_final_generation(self, intent_data: IntentResponse):
+        return intent_data.action
 
 
 class AdaptiveChatbot:
     def __init__(self, user_id: Union[str, Any], input_message: str):
         self.user_id = user_id
         self.input_message = input_message
-        self._engine: Optional[AdaptiveConversationEngine] = None
+        self._engine: Optional[Flow[BaseModel]] = None
 
 
     @property
-    def flow_engine(self) -> Optional[Flow[MainFlowStates]]:
+    def flow_engine(self) -> Flow[BaseModel]:
         if self._engine is None:
             self._engine = AdaptiveConversationEngine()
         return self._engine
@@ -191,10 +202,10 @@ class AdaptiveChatbot:
         try:
             response = await self.flow_engine.kickoff_async(inputs=self._input_data)
             if response is None:
-                raise Exception("No output")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
             return response
         except Exception as e:
-            raise e
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 class ChatbotExecutor:
@@ -202,6 +213,10 @@ class ChatbotExecutor:
         self.chat = chat
 
     async def execute(self):
-        return await self.chat.run()
-
+        try:
+            return await self.chat.run()
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
