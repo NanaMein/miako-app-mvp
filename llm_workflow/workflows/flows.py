@@ -10,6 +10,7 @@ from llm_workflow.prompts.prompt_library import PromptLibrary
 from fastapi import status, HTTPException
 from typing import Literal
 from dataclasses import dataclass, asdict
+from llm_workflow.workflows.steps.language_step import was_it_english, language_router, storing_memory
 
 
 class AppResources:
@@ -68,35 +69,21 @@ class _AdaptiveChatbotEngine(Flow[MainFlowStates]):
 
     @listen(safety_content_moderator)
     async def is_it_english(self):
-        system_message = RESOURCES.library.get_prompt("language_classifier.gemini_series.version_1")
-        self.language_classifier_llm.add_system(content=system_message)
-        self.language_classifier_llm.add_user(content=self.state.input_message)
-        return await self.language_classifier_llm.groq_scout(max_completion_tokens=1)
+        response = await was_it_english(self.state.input_message)
+        return response
+
 
     @router(is_it_english)
-    def english_router(self, answer):
-        if not answer:
-            return "Unknown"
+    def english_router(self, answer:str):
+        return language_router(answer=answer)
 
-        is_english = str(answer).strip().upper()
-
-        if is_english == "YES":
-            return "ROUTER_PASS"
-
-        elif is_english == "NO":
-            return "ROUTER_TRANSLATE"
-
-        elif is_english == "UNKNOWN":
-            return "ROUTER_DENIED"
-        else:
-            return "ROUTER_DENIED"
 
     @listen("ROUTER_PASS")
     async def english_user_query(self):
         print("PASS")
-        await self.original_memory.add_human_message(self.state.input_message)
-        await self.translated_memory.add_human_message(self.state.input_message)
-        return self.state.input_message
+        message = self.state.input_message
+        await storing_memory(self.original_memory, self.translated_memory, message)
+        return message
 
     @listen("ROUTER_TRANSLATE")
     async def translating_user_query(self):
@@ -107,6 +94,7 @@ class _AdaptiveChatbotEngine(Flow[MainFlowStates]):
         translated_response = await self.translation_llm.groq_maverick()
         await self.original_memory.add_human_message(self.state.input_message)
         await self.translated_memory.add_human_message(self.state.input_message)
+        return translated_response
 
 
     @listen("ROUTER_DENIED")
