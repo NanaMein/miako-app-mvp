@@ -50,7 +50,7 @@ class MainFlowStates(BaseModel):
 
 
 
-class AdaptiveConversationEngine(Flow[MainFlowStates]):
+class _AdaptiveChatbotEngine(Flow[MainFlowStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self.language_classifier_llm = ChatCompletionsClass()
@@ -205,7 +205,7 @@ class AdaptiveChatbot:
     @property
     def flow_engine(self) -> Flow[BaseModel]:
         if self._engine is None:
-            self._engine = AdaptiveConversationEngine()
+            self._engine = _AdaptiveChatbotEngine()
         return self._engine
 
     @property
