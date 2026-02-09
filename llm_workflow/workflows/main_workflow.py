@@ -74,11 +74,9 @@ class AdaptiveConversationEngine(Flow[MainFlowStates]):
         self.language_classifier_llm = ChatCompletionsClass()
         self.translation_llm = ChatCompletionsClass()
         self.intent_classifier_llm = ChatCompletionsClass()
+        self.original_memory = MessageStorage(f"Original_chat_{self.state.input_user_id}")
+        self.translated_memory = MessageStorage(f"Translated_chat_{self.state.input_user_id}")
 
-
-    @property
-    def message_storage(self):
-        return MessageStorage(self.state.input_user_id)
 
 
     @start()
@@ -112,8 +110,10 @@ class AdaptiveConversationEngine(Flow[MainFlowStates]):
             return "ROUTER_DENIED"
 
     @listen("ROUTER_PASS")
-    def english_user_query(self):
+    async def english_user_query(self):
         print("PASS")
+        await self.original_memory.add_human_message(self.state.input_message)
+        await self.translated_memory.add_human_message(self.state.input_message)
         return self.state.input_message
 
     @listen("ROUTER_TRANSLATE")
@@ -122,7 +122,9 @@ class AdaptiveConversationEngine(Flow[MainFlowStates]):
         system_prompt = RESOURCES.library.get_prompt("translation_layer.qwen_series.version_1")
         self.translation_llm.add_system(system_prompt)
         self.translation_llm.add_user(self.state.input_message)
-        return await self.translation_llm.groq_maverick()
+        translated_response = await self.translation_llm.groq_maverick()
+        await self.original_memory.add_human_message(self.state.input_message)
+        await self.translated_memory.add_human_message(self.state.input_message)
 
 
     @listen("ROUTER_DENIED")
@@ -176,8 +178,39 @@ class AdaptiveConversationEngine(Flow[MainFlowStates]):
         return self.state.intent_data
 
     @listen(or_(web_search_route, direct_reply_route, rag_query_route, system_op_route))
-    def mock_final_generation(self, intent_data: IntentResponse):
-        return intent_data.action
+    async def memory_pipeline(self, intent_data: IntentResponse):
+        system_prompt = """
+            ### System(Priming): You are a multilingual virtual assistant. You will answer the User and respond to the 
+            best of your abilities. User might ask weird request or direct questions, You will still answer and regardless
+            of the request is that you need to assist the user well. And then if it does weird request, at the end of your
+            respond, explain to the user what went wrong with how user ask you. Your name would be Miako, a sweet and supportive
+            assistant. 
+            
+            ### Instructions:
+            Translated and transformed chat conversation are considered context and follow the language used as the Original 
+            and continue to do so. If original is English, reply in english, if User use tagalog, reply in tagalog, if User
+            switch to other language, switch to other language too. You are a general purpose and conversational chatbot, being
+            adaptive to situations as you assist the User. 
+        """
+        orig_messages = await self.original_memory.get_messages()
+        translated_messages = await self.translated_memory.get_messages()
+        mock_memory = f"""
+        ### Time: {self.state.time_stamp}
+        ### User Intents: {self.state.unparsed_intent_data}
+        ### Translated and transformed previous chat conversation list (can be considered as context): 
+        {translated_messages}
+        ### Original and preserved chat conversation list: {orig_messages}
+        ### User query: {self.state.input_message}
+        ### Assistant:
+        """
+        chatbot = ChatCompletionsClass()
+        chatbot.add_system(system_prompt)
+        chatbot.add_user(mock_memory)
+        response = await chatbot.groq_maverick()
+        await self.original_memory.add_ai_message(response)
+        await self.translated_memory.add_ai_message(response)
+        get_msgs = await self.original_memory.get_messages()
+        return response, get_msgs
 
 
 class AdaptiveChatbot:
