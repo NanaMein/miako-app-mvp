@@ -8,16 +8,11 @@ from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.llm.groq_llm import ChatCompletionsClass
 from llm_workflow.prompts.prompt_library import PromptLibrary
 from fastapi import status, HTTPException
-from typing import Literal, Protocol
+from typing import Literal
 from dataclasses import dataclass, asdict
 
 
 class AppResources:
-    # current_file_dir = Path(__file__).parent
-    # project_root = current_file_dir.parent
-    # prompt_dir = project_root / "prompts"
-    # prompts_path = prompt_dir / "prompts.yaml"
-    # library = PromptLibrary(file_path=str(prompts_path))
     library = PromptLibrary()
 
 RESOURCES = AppResources()
@@ -52,19 +47,6 @@ class MainFlowStates(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     time_stamp: str = Field(default_factory=lambda: date_time_now())
 
-
-class ChatEngineProtocol(Protocol):
-
-    user_id: Union[str, Any]
-    input_message: str
-
-    @property
-    def _input_data(self) -> dict[str, Any]: ...
-
-    @property
-    def flow_engine(self) -> Flow[BaseModel]: ...
-
-    async def run(self) -> Union[FlowStreamingOutput, str, None]: ...
 
 
 
