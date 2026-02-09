@@ -6,7 +6,7 @@ from sqlmodel import delete
 from models.message_model import Message
 from schemas.message_schema import MessageBaseSchema, Role
 from databases.database import get_session
-from llm_workflow.workflows.flow_chatbot import FlowMainWorkflow
+from llm_workflow.workflows.concurrent_simulator_chatbot import FlowMainWorkflow
 from fastapi import FastAPI, HTTPException, status, Depends
 from llm_workflow.llm.groq_llm import ChatCompletionsClass
 from llm_workflow.workflows.main_workflow import ChatbotExecutor, AdaptiveChatbot
