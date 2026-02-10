@@ -201,9 +201,9 @@ class AdaptiveChatbot:
         inputs = InputData(input_user_id=self.user_id, input_message=self.input_message)
         return asdict(inputs)
 
-    async def run(self) -> Union[FlowStreamingOutput, str, None]:
+    async def run(self) -> Union[Any, str, None]:
         try:
-            response = await self.flow_engine.kickoff_async(inputs=self._input_data)
+            response, _ = await self.flow_engine.kickoff_async(inputs=self._input_data)
             if response is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bad Request")
             return response
