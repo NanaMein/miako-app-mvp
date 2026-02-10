@@ -1,25 +1,10 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from routers.auth_router import router as auth_router
 from core.config import settings
-# from dotenv import load_dotenv
-# import os
-# load_dotenv()
+from routers.llm_workflow_router import router as llm_router
+
 
 app = FastAPI()
-
-# origins=[os.getenv("ALLOW_ORIGIN")]
-ORIGINS=settings.ALLOW_ORIGINS
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(auth_router)
+app.include_router(llm_router)
 
 
 if __name__ == "__main__":
