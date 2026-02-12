@@ -58,7 +58,17 @@ class LanguageState(BaseModel):
 class _LanguageRouter(Flow[LanguageState]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
+        self.llm = LLMGroq()
 
+    @property
+    def original_memory(self):
+        _user_id = f"original_x_{self.state.user_id}"
+        return MessageStorage(user_id=_user_id)
+
+    @property
+    def translated_memory(self):
+        _user_id = f"translated_x_{self.state.user_id}"
+        return MessageStorage(user_id=_user_id)
 
     @start
     async def english_identifier(self) -> str:
