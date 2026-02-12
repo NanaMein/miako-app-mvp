@@ -1,5 +1,6 @@
-
-from typing import Literal
+from typing import Literal, Any, Union, Optional
+from crewai.flow.flow import Flow, start, listen, router, and_, or_
+from pydantic import BaseModel, ConfigDict
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.prompts.prompt_library import PromptLibrary
 from llm_workflow.llm.groq_llm import ChatCompletionsClass as LLMGroq
@@ -37,3 +38,24 @@ def language_router(answer:str):
 async def storing_memory(orig_memory: MessageStorage, trans_memory: MessageStorage, message_to_be_saved:str):
     await orig_memory.add_human_message(message_to_be_saved)
     await trans_memory.add_human_message(message_to_be_saved)
+
+
+class LanguageState(BaseModel):
+    user_id: str = ""
+    original_message: str = ""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+
+
+
+class _LanguageRouter(Flow[LanguageState]):
+    def __init__(self, **kwargs: Any):
+        super().__init__(**kwargs)
+
+
+    @start
+    def english_identifier(self) -> str:
+
+
+
