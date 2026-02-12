@@ -1,4 +1,6 @@
-from typing import Union, Dict, Optional, List
+from typing import Union, Dict, Optional, List, Any
+from collections import deque
+from datetime import datetime
 import asyncio
 import uuid
 import time
@@ -18,7 +20,7 @@ class UserMemory:
     __slots__ = ["lock","messages","last_accessed"]
     def __init__(self) -> None:
         self.lock = asyncio.Lock()
-        self.messages: list[dict] = []
+        self.messages: deque = deque(maxlen=50)
         self.last_accessed: float = time.monotonic()
 
 async def _background_cleanup() -> None:
@@ -53,18 +55,6 @@ class MessageStorage:
             except RuntimeError:
                 pass
 
-    @staticmethod
-    def human_content(content: str) -> dict[str, str]:
-        return {"role":"user","content":content}
-
-    @staticmethod
-    def ai_content(content: str) -> dict[str, str]:
-        return {"role": "assistant", "content": content}
-
-    @staticmethod
-    def system_instructions(content: str) -> dict[str, str]:
-        return {"role": "system", "content": content}
-
     @property
     def user_id(self) -> Union[str, None]:
         _id = self._user_id
@@ -94,26 +84,63 @@ class MessageStorage:
             _user.last_accessed = time.monotonic()
             return _user
 
-    async def add_human_message(self, content: str):
+
+    @staticmethod
+    def _create_message(role: str, content: str, **kwargs) -> dict[str, Any]:
+        msg = {"role": role, "content": content, "created_at": datetime.now().isoformat()}
+        if kwargs:
+            for k in("role", "content", "created_at"):
+                kwargs.pop(k, None)
+            msg.update(kwargs)
+        return msg
+
+    async def add_human_message(self, content: str, **metadata):
         _user = await self._get_user_memory()
         async with _user.lock:
-            _user.messages.append(self.human_content(content))
+            msg = self._create_message(role="user", content=content, **metadata)
+            _user.messages.append(msg)
             _user.last_accessed = time.monotonic()
         return self
 
-    async def add_ai_message(self, content: str):
+    async def add_ai_message(self, content: str, **metadata):
         _user = await self._get_user_memory()
         async with _user.lock:
-            _user.messages.append(self.ai_content(content))
+            msg = self._create_message(role="assistant", content=content, **metadata)
+            _user.messages.append(msg)
             _user.last_accessed = time.monotonic()
         return self
 
-    async def get_messages(self) -> List[dict]:
+    async def get_messages(self, include_metadata: bool = False) -> List[dict]:
         _user = await self._get_user_memory()
         async with _user.lock:
-            return list(_user.messages)
+            current_history = list(_user.messages)
+
+            if include_metadata:
+                return current_history
+
+            clean_list = []
+
+            for msg in current_history:
+                clean_list.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+
+            return clean_list
+
+
 
     async def get_messages_with_system(self, system_instructions: str = DEFAULT_SYSTEM) -> List[dict]:
         _user = await self._get_user_memory()
         async with _user.lock:
-            return [self.system_instructions(system_instructions), *_user.messages]
+
+            clean_list = [{"role":"system", "content":system_instructions}]
+
+            for msg in _user.messages:
+                clean_msg = {
+                    "role":msg["role"],
+                    "content":msg["content"]
+                }
+                clean_list.append(clean_msg)
+
+            return clean_list
