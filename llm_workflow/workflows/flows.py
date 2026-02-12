@@ -19,8 +19,7 @@ class AppResources:
 RESOURCES = AppResources()
 
 
-def date_time_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+def date_time_now() -> str: return datetime.now(timezone.utc).isoformat()
 
 
 
@@ -39,7 +38,7 @@ class IntentResponse(BaseModel):
 
 
 
-class MainFlowStates(BaseModel):
+class EngineStates(BaseModel):
     input_message: str = Field(default="", description="User input message to llm workflow")
     input_user_id: str = Field(default="")
     intent_data: Optional[IntentResponse] = Field(default=None, description="Current intent data after translation")
@@ -51,7 +50,7 @@ class MainFlowStates(BaseModel):
 
 
 
-class _AdaptiveChatbotEngine(Flow[MainFlowStates]):
+class _AdaptiveChatbotEngine(Flow[EngineStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self.language_classifier_llm = ChatCompletionsClass()
