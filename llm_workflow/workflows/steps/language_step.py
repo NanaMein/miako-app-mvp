@@ -87,6 +87,16 @@ class _LanguageRouter(Flow[LanguageState]):
     async def english_router_failed(self):
         return await self._translate_to_english(self.state.original_message)
 
+    @listen(or_(english_router_passed, english_router_failed))
+    async def memory_update(self, message):
+        await self.original_memory.add_human_message(self.state.original_message)
+        await self.translated_memory.add_human_message(message)
+        return message
+
+    @listen(memory_update)
+    def final_answer(self, message):
+        return message
+
 
 
 
