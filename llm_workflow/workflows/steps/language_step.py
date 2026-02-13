@@ -95,7 +95,7 @@ class _LanguageRouter(Flow[LanguageState]):
         self.llm.add_system(system_message)
         self.llm.add_user(input_message)
         response = await self.llm.groq_scout(max_completion_tokens=1)
-        return response
+        return str(response)
 
 
     def _english_router(self, input_message: str):
@@ -114,6 +114,12 @@ class _LanguageRouter(Flow[LanguageState]):
 
         return "error_db"
 
+    async def _translate_to_english(self, input_message: str):
+        system_message = LIB.get_prompt("")
+        self.llm.add_system(system_message)
+        self.llm.add_user(input_message)
+        response = await self.llm.groq_maverick()
+        return str(response)
 
 
 
