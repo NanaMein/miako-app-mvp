@@ -79,6 +79,16 @@ class _LanguageRouter(Flow[LanguageState]):
     def english_router(self, identified_language: str):
         return self._english_router(identified_language)
 
+    @listen("english_router_passed")
+    def english_router_passed(self):
+        return self.state.original_message
+
+    @listen("english_router_failed")
+    async def english_router_failed(self):
+        return await self._translate_to_english(self.state.original_message)
+
+
+
 
     async def _english_identifier(self, input_message: str):
         system_message = LIB.get_prompt("language_classifier.current")
@@ -107,3 +117,7 @@ class _LanguageRouter(Flow[LanguageState]):
 
 
 
+
+    @listen("error_db")
+    def error_db(self):
+        return None
