@@ -1,20 +1,7 @@
-from llm_workflow.workflows.protocol import ChatEngineProtocol
-from fastapi import HTTPException, status
 from llm_workflow.workflows.flows import AdaptiveChatbot
+from llm_workflow.workflows.base import ChatbotExecutor
 
 
-
-class ChatbotExecutor:
-    def __init__(self, chat: ChatEngineProtocol):
-        self.chat = chat
-
-    async def execute(self):
-        try:
-            return await self.chat.run()
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 
@@ -65,7 +52,6 @@ async def _main_async():
         if not keep_going:
             break
 
-# if __name__ == "__main__":
 #     import asyncio
 #     try:
 #         asyncio.run(_main_async())
