@@ -16,34 +16,6 @@ class LanguageLibrary(BasePrompt):
 LIB = LanguageLibrary()
 
 
-async def was_it_english(input_message: str):
-    llm = LLMGroq()
-    system_message = library.get_prompt("language_classifier.gemini_series.version_1")
-    llm.add_system(content=system_message)
-    llm.add_user(content=input_message)
-    return await llm.groq_scout(max_completion_tokens=1)
-
-
-def language_router(answer:str):
-    if answer is None or answer == "":
-        return "Unknown"
-
-    is_english = str(answer).strip().upper()
-
-    if is_english == "YES":
-        return "ROUTER_PASS"
-
-    elif is_english == "NO":
-        return "ROUTER_TRANSLATE"
-
-    elif is_english == "UNKNOWN":
-        return "ROUTER_DENIED"
-    else:
-        return "ROUTER_DENIED"
-
-async def storing_memory(orig_memory: MessageStorage, trans_memory: MessageStorage, message_to_be_saved:str):
-    await orig_memory.add_human_message(message_to_be_saved)
-    await trans_memory.add_human_message(message_to_be_saved)
 
 
 class LanguageState(BaseModel):

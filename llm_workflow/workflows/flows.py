@@ -10,7 +10,9 @@ from llm_workflow.prompts.prompt_library import PromptLibrary
 from fastapi import status, HTTPException
 from typing import Literal
 from dataclasses import dataclass, asdict
-from llm_workflow.workflows.steps.language_step import was_it_english, language_router, storing_memory
+from llm_workflow.workflows.steps.language_step import (
+    LanguageFlow
+)
 
 
 class AppResources:
@@ -53,8 +55,8 @@ class EngineStates(BaseModel):
 class _AdaptiveChatbotEngine(Flow[EngineStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self.language_classifier_llm = ChatCompletionsClass()
-        self.translation_llm = ChatCompletionsClass()
+        # self.language_classifier_llm = ChatCompletionsClass()
+        # self.translation_llm = ChatCompletionsClass()
         self.intent_classifier_llm = ChatCompletionsClass()
         self.original_memory = MessageStorage(f"Original_chat_{self.state.input_user_id}")
         self.translated_memory = MessageStorage(f"Translated_chat_{self.state.input_user_id}")
@@ -66,42 +68,16 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
         pass #For development only, assume there is a content moderator here.
 
 
+    # @listen(or_(english_user_query, translating_user_query, unknown_category))
     @listen(safety_content_moderator)
-    async def is_it_english(self):
-        response = await was_it_english(self.state.input_message)
-        return response
+    async def language_layer(self):
+        language_flow = LanguageFlow(
+            user_id=self.state.input_user_id,
+            original_message=self.state.input_message
+        )
+        return await language_flow.run()
 
-
-    @router(is_it_english)
-    def english_router(self, answer:str):
-        return language_router(answer=answer)
-
-
-    @listen("ROUTER_PASS")
-    async def english_user_query(self):
-        print("PASS")
-        message = self.state.input_message
-        await storing_memory(self.original_memory, self.translated_memory, message)
-        return message
-
-    @listen("ROUTER_TRANSLATE")
-    async def translating_user_query(self):
-        print("TRANSLATE")
-        system_prompt = RESOURCES.library.get_prompt("translation_layer.qwen_series.version_1")
-        self.translation_llm.add_system(system_prompt)
-        self.translation_llm.add_user(self.state.input_message)
-        translated_response = await self.translation_llm.groq_maverick()
-        await self.original_memory.add_human_message(self.state.input_message)
-        await self.translated_memory.add_human_message(self.state.input_message)
-        return translated_response
-
-
-    @listen("ROUTER_DENIED")
-    def unknown_category(self):
-        print("UNKNOWN")
-        return "violence and war"
-
-    @listen(or_(english_user_query, translating_user_query, unknown_category))
+    @listen(language_layer)
     async def intent_classifier(self, answer):
         system_prompt = RESOURCES.library.get_prompt("intent_classifier.gemini_series.version_1")
         self.intent_classifier_llm.add_system(system_prompt)
