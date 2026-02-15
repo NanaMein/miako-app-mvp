@@ -14,7 +14,6 @@ class LanguageLibrary(BasePrompt):
 LANGUAGE = LanguageLibrary()
 
 
-
 class LanguageState(BaseModel):
     user_id: str = ""
     original_message: str = ""
@@ -132,10 +131,10 @@ class LanguageFlow:
 
 
 
-_lang = LanguageFlow("user_123", "hello")
-
-async def get_lang():
-    result = await _lang.run()
-    print(result)
-    return result
-asyncio.run(get_lang())
+# _lang = LanguageFlow("user_123", "hello")
+#
+# async def get_lang():
+#     result = await _lang.run()
+#     print(result)
+#     return result
+# asyncio.run(get_lang())
