@@ -70,3 +70,7 @@ class BasePrompt:
 class PromptLibrary(BasePrompt):
     def __init__(self):
         super().__init__("prompts.yaml")
+
+class LanguageLibrary(BasePrompt):
+    def __init__(self):
+        super().__init__("language.yaml")
