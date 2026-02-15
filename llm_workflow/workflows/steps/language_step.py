@@ -7,15 +7,11 @@ from llm_workflow.llm.groq_llm import ChatCompletionsClass as LLMGroq
 import asyncio
 
 
-library = PromptLibrary()
-
-
 class LanguageLibrary(BasePrompt):
     def __init__(self):
         super().__init__("language.yaml")
 
-LIB = LanguageLibrary()
-
+LANGUAGE = LanguageLibrary()
 
 
 
@@ -23,8 +19,6 @@ class LanguageState(BaseModel):
     user_id: str = ""
     original_message: str = ""
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
 
 
 
@@ -75,7 +69,7 @@ class _LanguageRouter(Flow[LanguageState]):
 
 
     async def _english_identifier(self, input_message):
-        system_message = LIB.get_prompt("language_classifier.current")
+        system_message = LANGUAGE.get_prompt("language_classifier.current")
         self.llm.add_system(system_message)
         self.llm.add_user(input_message)
         response = await self.llm.groq_scout(max_completion_tokens=1)
@@ -99,10 +93,10 @@ class _LanguageRouter(Flow[LanguageState]):
         return "error_db"
 
     async def _translate_to_english(self, input_message: str):
-        system_message = LIB.get_prompt("")
+        system_message = LANGUAGE.get_prompt("language_translation.current")
         self.llm.add_system(system_message)
         self.llm.add_user(input_message)
-        response = await self.llm.groq_maverick()
+        response = await self.llm.groq_maverick(max_completion_tokens=8000)
         print(response)
         return str(response)
 
