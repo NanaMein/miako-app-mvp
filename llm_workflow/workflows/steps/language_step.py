@@ -2,14 +2,10 @@ from typing import Literal, Any, Union, Optional
 from crewai.flow.flow import Flow, start, listen, router, and_, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
-from llm_workflow.prompts.prompt_library import PromptLibrary, BasePrompt
+from llm_workflow.prompts.prompt_library import LanguageLibrary
 from llm_workflow.llm.groq_llm import ChatCompletionsClass as LLMGroq
 import asyncio
 
-
-class LanguageLibrary(BasePrompt):
-    def __init__(self):
-        super().__init__("language.yaml")
 
 LANGUAGE = LanguageLibrary()
 
