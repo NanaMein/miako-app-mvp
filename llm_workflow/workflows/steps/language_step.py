@@ -1,10 +1,10 @@
-from typing import Literal, Any, Union, Optional
-from crewai.flow.flow import Flow, start, listen, router, and_, or_
+from typing import Any
+from crewai.flow.flow import Flow, start, listen, router, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.prompts.prompt_library import LanguageLibrary
 from llm_workflow.llm.groq_llm import ChatCompletionsClass as LLMGroq
-import asyncio
+
 
 
 LANGUAGE = LanguageLibrary()
@@ -55,7 +55,7 @@ class _LanguageRouter(Flow[LanguageState]):
 
     @listen(or_(english_router_passed, english_router_failed))
     async def memory_update(self, message):
-        print(f"Running: memory_update -> {message}")
+        print("Running: memory_update")
         await self.original_memory.add_human_message(self.state.original_message)
         await self.translated_memory.add_human_message(message)
         return message
@@ -96,14 +96,10 @@ class _LanguageRouter(Flow[LanguageState]):
         return str(response)
 
 
-
-
     @listen("error_db")
     def error_db(self):
         print("error_db")
         return None
-
-
 
     @listen(memory_update)
     def final_answer(self, message):

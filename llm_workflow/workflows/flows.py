@@ -10,9 +10,7 @@ from llm_workflow.prompts.prompt_library import PromptLibrary
 from fastapi import status, HTTPException
 from typing import Literal
 from dataclasses import dataclass, asdict
-from llm_workflow.workflows.steps.language_step import (
-    LanguageFlow
-)
+from llm_workflow.workflows.steps.language_step import LanguageFlow
 
 
 class AppResources:
@@ -55,8 +53,6 @@ class EngineStates(BaseModel):
 class _AdaptiveChatbotEngine(Flow[EngineStates]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        # self.language_classifier_llm = ChatCompletionsClass()
-        # self.translation_llm = ChatCompletionsClass()
         self.intent_classifier_llm = ChatCompletionsClass()
         self.original_memory = MessageStorage(f"Original_chat_{self.state.input_user_id}")
         self.translated_memory = MessageStorage(f"Translated_chat_{self.state.input_user_id}")
@@ -68,7 +64,6 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
         pass #For development only, assume there is a content moderator here.
 
 
-    # @listen(or_(english_user_query, translating_user_query, unknown_category))
     @listen(safety_content_moderator)
     async def language_layer(self):
         language_flow = LanguageFlow(
