@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, Union, Any
 from groq import AsyncGroq
+from groq.types.chat.chat_completion_message import ChatCompletionMessage
 from functools import lru_cache
 from llm_workflow.config_files.config import workflow_settings
 from abc import ABC, abstractmethod
@@ -49,6 +50,10 @@ class ChatCompletionsClass(ChatBase):
     def __init__(self):
         super().__init__()
 
+    @property
+    def client(self) -> AsyncGroq:
+        return get_groq_client()
+
     async def groq_scout(self, **kwargs):
         return await self._pipeline("scout",**kwargs)
 
@@ -64,37 +69,37 @@ class ChatCompletionsClass(ChatBase):
         return await self._pipeline(model=model_type, **kwargs)
 
 
-    # async def _pipeline(self, model: str, **kwargs) -> str:
-    #     kwargs.setdefault("temperature", 0)
-    #     kwargs.setdefault("max_completion_tokens", 8000)
-    #     kwargs.setdefault("top_p", 1)
-    #     kwargs.setdefault("stop", None)
-    #     kwargs.setdefault("stream", False)
-    #
-    #     completion = await self.client.chat.completions.create(
-    #         model=_model(model=model),
-    #         messages=self.cached_messages,
-    #         **kwargs
-    #     )
-    #     pre_content = completion.choices[0].message
-    #     return pre_content.content
-    #
-    #
-    # def add_system(self, content: str = ""):
-    #     self._add_msg("system", content)
-    #     return self
-    #
-    # def add_user(self, content: str = ""):
-    #     self._add_msg("user",content)
-    #     return self
-    #
-    # def add_assistant(self, content: str = ""):
-    #     self._add_msg("assistant", content)
-    #     return self
-    #
-    # def _add_msg(self, role: str, content: str = ""):
-    #     if content and content.strip():
-    #         self.cached_messages.append({"role": role, "content": content})
+    async def _pipeline(self, model: str, **kwargs) -> str:
+        kwargs.setdefault("temperature", 0)
+        kwargs.setdefault("max_completion_tokens", 8000)
+        kwargs.setdefault("top_p", 1)
+        kwargs.setdefault("stop", None)
+        kwargs.setdefault("stream", False)
+
+        completion = await self.client.chat.completions.create(
+            model=_model(model=model),
+            messages=self.cached_messages,
+            **kwargs
+        )
+        pre_content = completion.choices[0].message
+        return pre_content.content
+
+
+    def add_system(self, content: str = ""):
+        self._add_msg("system", content)
+        return self
+
+    def add_user(self, content: str = ""):
+        self._add_msg("user",content)
+        return self
+
+    def add_assistant(self, content: str = ""):
+        self._add_msg("assistant", content)
+        return self
+
+    def _add_msg(self, role: str, content: str = ""):
+        if content and content.strip():
+            self.cached_messages.append({"role": role, "content": content})
 
 
 def _model(model: str) -> Optional[str]:
