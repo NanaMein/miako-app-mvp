@@ -52,6 +52,8 @@ class IntentState(BaseModel):
     input_message: str = ""
     unparsed_intent_data: str = ""
     intent_data: Optional[IntentResponse] = None
+    system_prompt = RESOURCES.intent_library.get_prompt("intent_classifier.current")
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -61,5 +63,7 @@ class IntentClassifier(Flow[IntentState]):
         self.llm = LLMGroq()
 
     @start()
-    def gathering_data_prompts(self):
-        RESOURCES.intent_library.get_prompt("intent_classifier.current")
+    async def intent_classifier(self):
+        self.llm.add_system(self.state.system_prompt)
+        self.llm.add_user(self.state.input_message)
+        return await self.llm.groq_maverick()
