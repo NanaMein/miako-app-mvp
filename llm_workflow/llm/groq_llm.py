@@ -1,9 +1,13 @@
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Protocol, Self, List, Dict
 from groq import AsyncGroq
-from groq.types.chat.chat_completion_message import ChatCompletionMessage
+from groq.types.chat import (
+    ChatCompletionMessage,
+    ChatCompletionSystemMessageParam,
+    ChatCompletionUserMessageParam,
+    ChatCompletionAssistantMessageParam
+)
 from functools import lru_cache
 from llm_workflow.config_files.config import workflow_settings
-from abc import ABC, abstractmethod
 
 
 class GroqModelList:
@@ -20,35 +24,45 @@ class GroqModelList:
     qwen = "qwen/qwen3-32b"
 
 MODEL = GroqModelList()
-
+ChatCompReturnType = List[
+    ChatCompletionSystemMessageParam |
+    ChatCompletionUserMessageParam |
+    ChatCompletionAssistantMessageParam |
+    Dict[str, Any]
+]
 
 @lru_cache()
 def get_groq_client():
     return AsyncGroq(api_key=workflow_settings.GROQ_API_KEY.get_secret_value())
 
-class ChatBase(ABC):
+class ChatBase(Protocol):
+
+    def add_system(self, content: str = "") -> Self:
+        ...
+
+    def add_user(self, content: str = "") -> Self:
+        ...
+
+    def add_assistant(self, content: str = "") -> Self:
+        ...
+
+    @property
+    def cached_messages(self) -> ChatCompReturnType:
+        ...
+
+
+
+
+class ChatCompletionsClass:
 
     def __init__(self):
-        self.cached_messages = []
+        self._cached_messages = None
 
-    @abstractmethod
-    def add_system(self, content: str = ""):
-        pass
-
-    @abstractmethod
-    def add_user(self, content: str = ""):
-        pass
-
-    @abstractmethod
-    def add_assistant(self, content: str = ""):
-        pass
-
-
-
-
-class ChatCompletionsClass(ChatBase):
-    def __init__(self):
-        super().__init__()
+    @property
+    def cached_messages(self) -> ChatCompReturnType:
+        if self._cached_messages is None:
+            self._cached_messages = []
+        return self._cached_messages
 
     @property
     def client(self) -> AsyncGroq:
