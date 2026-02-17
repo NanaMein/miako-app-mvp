@@ -1,7 +1,7 @@
 from typing import Union, Any, Literal, Optional
 from crewai.flow.flow import Flow, start, listen, and_, or_
 from pydantic import BaseModel, ConfigDict
-from llm_workflow.llm.groq_llm import ChatCompletionsClass as LLMGroq
+from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from llm_workflow.prompts.prompt_library import BasePrompt
 
 class IntentLibrary(BasePrompt):
@@ -10,7 +10,7 @@ class IntentLibrary(BasePrompt):
 
 class AppResources:
     intent_library = IntentLibrary()
-    llm = LLMGroq()
+    llm = GroqLLM()
 
 RESOURCES = AppResources()
 
@@ -26,7 +26,7 @@ async def intent_classifier(input_message: str):
     system_prompt = RESOURCES.intent_library.get_prompt("intent_classifier.gemini_series.version_1")
     RESOURCES.llm.add_system(system_prompt)
     RESOURCES.llm.add_user(input_message)
-    chat_response = await RESOURCES.llm.groq_maverick()
+    chat_response = await RESOURCES.llm.groq_chat(model=MODEL.maverick)
     return parsing_intent_data(input_intent=chat_response)
 
 def parsing_intent_data(input_intent: str):
@@ -60,10 +60,10 @@ class IntentState(BaseModel):
 class IntentClassifier(Flow[IntentState]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self.llm = LLMGroq()
+        self.llm = GroqLLM()
 
     @start()
     async def intent_classifier(self):
         self.llm.add_system(self.state.system_prompt)
         self.llm.add_user(self.state.input_message)
-        return await self.llm.groq_maverick()
+        return await self.llm.groq_chat(model=MODEL.maverick)
