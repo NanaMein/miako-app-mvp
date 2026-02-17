@@ -1,4 +1,4 @@
-from typing import Optional, Union, Any, Protocol, Self, List, Dict
+from typing import Any, Protocol, Self, List, Dict
 from groq import AsyncGroq
 from groq.types.chat import (
     ChatCompletionMessage,
@@ -24,6 +24,7 @@ class GroqModelList:
     qwen = "qwen/qwen3-32b"
 
 MODEL = GroqModelList()
+
 ChatCompReturnType = List[
     ChatCompletionSystemMessageParam |
     ChatCompletionUserMessageParam |
@@ -116,7 +117,7 @@ class ChatCompletionsClass:
             self.cached_messages.append({"role": role, "content": content})
 
 
-def _model(model: str) -> Optional[str]:
+def _model(model: str) -> str | None:
     choices = {
         "cb": "compound-beta",
         "cbm": "compound-beta-mini",
@@ -191,13 +192,13 @@ class GroqLLM:
         else:
             return pre_content.content
 
-    async def groq_chat(self, model: str, **kwargs) -> str:
+    async def groq_chat(self, model: str = MODEL.instant, **kwargs) -> str:
         try:
             return await self._pipeline(model=model, return_as_object=False, **kwargs)
         except Exception as e:
             raise e
 
-    async def groq_message_object(self, model: str, return_as_object: bool = True, **kwargs) -> Union[str, ChatCompletionMessage]:
+    async def groq_message_object(self, model: str = MODEL.instant, return_as_object: bool = True, **kwargs) -> str | ChatCompletionMessage:
         try:
             return await self._pipeline(model=model, return_as_object=return_as_object, **kwargs)
         except Exception as e:
