@@ -134,24 +134,30 @@ def _model(model: str) -> Optional[str]:
     return choices.get(model)
 
 
-class GroqLLM(ChatBase):
+class GroqLLM:
 
     def __init__(self):
-        super().__init__()
+        self._cached_messages = None
+
+    @property
+    def cached_messages(self) -> ChatCompReturnType:
+        if self._cached_messages is None:
+            self._cached_messages = []
+        return self._cached_messages
 
     @property
     def client(self) -> AsyncGroq:
         return get_groq_client()
 
-    def add_system(self, content: str = ""):
+    def add_system(self, content: str = "") -> Self:
         self._add_msg("system", content)
         return self
 
-    def add_user(self, content: str = ""):
+    def add_user(self, content: str = "") -> Self:
         self._add_msg("user",content)
         return self
 
-    def add_assistant(self, content: str = ""):
+    def add_assistant(self, content: str = "") -> Self:
         self._add_msg("assistant", content)
         return self
 
@@ -186,7 +192,13 @@ class GroqLLM(ChatBase):
             return pre_content.content
 
     async def groq_chat(self, model: str, **kwargs) -> str:
-        return await self._pipeline(model=model, return_as_object=False, **kwargs)
+        try:
+            return await self._pipeline(model=model, return_as_object=False, **kwargs)
+        except Exception as e:
+            raise e
 
     async def groq_message_object(self, model: str, return_as_object: bool = True, **kwargs) -> Union[str, ChatCompletionMessage]:
-        return await self._pipeline(model=model, return_as_object=return_as_object, **kwargs)
+        try:
+            return await self._pipeline(model=model, return_as_object=return_as_object, **kwargs)
+        except Exception as e:
+            raise e
