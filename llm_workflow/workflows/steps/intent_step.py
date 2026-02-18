@@ -2,16 +2,21 @@ from typing import Union, Any, Literal, Optional
 from crewai.flow.flow import Flow, start, listen, and_, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
-from llm_workflow.prompts.prompt_library import IntentLibrary
+from llm_workflow.prompts.prompt_library import IntentLibrary, DataExtractorLibrary
+from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from groq.types.chat import ChatCompletionMessage
+from llama_index.core.prompts import PromptTemplate
 import asyncio
 
 
 
 
 class AppResources:
-    intent_library = IntentLibrary()
-    llm = GroqLLM()
+    _intent_library = IntentLibrary()
+    intent_classifier_instructions = _intent_library.get_prompt("intent_classifier.current")
+    _test_intent_extractor = DataExtractorLibrary()
+    _data_extractor_template = _test_intent_extractor.get_prompt("version-2")
+    data_extractor = PromptTemplate(_data_extractor_template)
 
 RESOURCES = AppResources()
 
@@ -62,6 +67,18 @@ class IntentClassifier(Flow[IntentState]):
         return action
 
 
+    @property
+    def original_memory(self):
+        _user_id = f"original_x_{self.state.user_id}"
+        return MessageStorage(user_id=_user_id)
+
+    @property
+    def translated_memory(self):
+        _user_id = f"translated_x_{self.state.user_id}"
+        return MessageStorage(user_id=_user_id)
+
+
+
     @staticmethod
     def _intent_action_router(intent_data: IntentResponse):
         intent_action = intent_data.action
@@ -81,6 +98,39 @@ class IntentClassifier(Flow[IntentState]):
     def _intent_validate_json(data: str):
         _intent_json = IntentResponse.model_validate_json(data)
         return _intent_json
+
+    @staticmethod
+    def memory_parsing_to_string(input_list: list[Any]) -> str:
+        _list = []
+        for msg in input_list:
+            role = msg["role"].upper()
+            content = msg["content"]
+            metadata = msg["metadata"]
+            msg_str = f"{role}:\n{content}\nMetadata:\n{metadata}\n===\n"
+            _list.append(msg_str)
+        full_str = "".join(_list)
+        return full_str
+
+    async def _first_phase_intent_extractor(self):
+        _orig_list = await self.original_memory.get_messages(include_metadata=True)
+        _tran_list = await self.translated_memory.get_messages(include_metadata=True)
+        original_str = self.memory_parsing_to_string(_orig_list)
+        translated_str = self.memory_parsing_to_string(_tran_list)
+        full_conversation_history = f"""
+        === ORIGINAL MESSAGES ===\n
+        {original_str}\n\n
+        === TRANSLATED MESSAGES ===\n
+        {translated_str}
+        
+        """
+
+
+        formatted_prompt = RESOURCES.data_extractor.format(
+            user_input=self.state.input_message,
+            conversation_history=full_conversation_history,
+            documentation_context="None",
+        )
+        return formatted_prompt
 
 
 x = IntentClassifier()
