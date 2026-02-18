@@ -78,3 +78,7 @@ class LanguageLibrary(BasePrompt):
 class IntentLibrary(BasePrompt):
     def __init__(self):
         super().__init__("intent.yaml")
+
+class DataExtractorLibrary(BasePrompt):
+    def __init__(self):
+        super().__init__("data_extractor.yaml")

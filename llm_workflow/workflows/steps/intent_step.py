@@ -33,7 +33,6 @@ class IntentState(BaseModel):
     input_message: str = ""
     unparsed_intent_data: str = ""
     intent_data: Optional[IntentResponse] = None
-    system_prompt: str = RESOURCES.intent_library.get_prompt("intent_classifier.current")
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -45,7 +44,7 @@ class IntentClassifier(Flow[IntentState]):
 
     @start()
     async def intent_classifier(self):
-        self.llm.add_system(self.state.system_prompt)
+        self.llm.add_system(RESOURCES.intent_classifier_instructions)
         self.llm.add_user(self.state.input_message)
         response = await self.llm.groq_message_object(model=MODEL.maverick)
         return response
