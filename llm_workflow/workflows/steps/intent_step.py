@@ -2,14 +2,12 @@ from typing import Union, Any, Literal, Optional
 from crewai.flow.flow import Flow, start, listen, and_, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
-from llm_workflow.prompts.prompt_library import BasePrompt
+from llm_workflow.prompts.prompt_library import IntentLibrary
 from groq.types.chat import ChatCompletionMessage
 import asyncio
 
 
-class IntentLibrary(BasePrompt):
-    def __init__(self):
-        super().__init__("intent.yaml")
+
 
 class AppResources:
     intent_library = IntentLibrary()

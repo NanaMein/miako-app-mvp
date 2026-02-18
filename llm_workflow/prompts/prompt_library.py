@@ -74,3 +74,7 @@ class PromptLibrary(BasePrompt):
 class LanguageLibrary(BasePrompt):
     def __init__(self):
         super().__init__("language.yaml")
+
+class IntentLibrary(BasePrompt):
+    def __init__(self):
+        super().__init__("intent.yaml")
