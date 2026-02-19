@@ -43,6 +43,8 @@ class IntentClassifier(Flow[IntentState]):
         self.llm = GroqLLM()
 
     @start()
+    def start_with_data_extraction(self):
+        pass
 
     # @start()
     # async def intent_classifier(self):
