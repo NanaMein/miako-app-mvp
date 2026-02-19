@@ -14,9 +14,11 @@ import asyncio
 class AppResources:
     _intent_library = IntentLibrary()
     intent_classifier_instructions = _intent_library.get_prompt("intent_classifier.current")
-    _test_intent_extractor = DataExtractorLibrary()
-    _data_extractor_template = _test_intent_extractor.get_prompt("version-2")
-    data_extractor = PromptTemplate(_data_extractor_template)
+    _data_extractor_prompts = DataExtractorLibrary()
+    _user_first_phase_template = _data_extractor_prompts.get_prompt("user-first-phase")
+
+    system_first_phase = _data_extractor_prompts.get_prompt("system-first-phase")
+    user_first_phase = PromptTemplate(_user_first_phase_template)
 
 RESOURCES = AppResources()
 
@@ -31,6 +33,8 @@ class IntentResponse(BaseModel):
 class IntentState(BaseModel):
     user_id: Union[str, Any] = ""
     input_message: str = ""
+    translated_user_input: str = ""
+    original_user_input: str = ""
     unparsed_intent_data: str = ""
     intent_data: Optional[IntentResponse] = None
 
@@ -41,6 +45,7 @@ class IntentClassifier(Flow[IntentState]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self.llm = GroqLLM()
+
 
     @start()
     def start_with_data_extraction(self):
@@ -115,27 +120,23 @@ class IntentClassifier(Flow[IntentState]):
         full_str = "".join(_list)
         return full_str
 
-    async def _first_phase_intent_extractor(self):
+    async def _prompts_for_first_phase(self) -> tuple[str, str]:
         _orig_list = await self.original_memory.get_messages(include_metadata=True)
         _tran_list = await self.translated_memory.get_messages(include_metadata=True)
         original_str = self.memory_parsing_to_string(_orig_list)
         translated_str = self.memory_parsing_to_string(_tran_list)
-        full_conversation_history = f"""
-        === ORIGINAL MESSAGES ===\n
-        {original_str}\n\n
-        === TRANSLATED MESSAGES ===\n
-        {translated_str}
-        
-        """
 
 
-        formatted_prompt = RESOURCES.data_extractor.format(
-            user_input=self.state.input_message,
-            conversation_history=full_conversation_history,
-            documentation_context="None",
+        user_prompt = RESOURCES.user_first_phase.format(
+            user_input_translated=self.state.input_message,
+            original_conversation=original_str,
+            translated_conversation=translated_str,
+            documentation_context="None"
+
         )
-        return formatted_prompt
+        system_prompt = RESOURCES.system_first_phase
 
+        return system_prompt, user_prompt
 
 x = IntentClassifier()
 _xx = x.kickoff_async({"input_message":"hello world"})
