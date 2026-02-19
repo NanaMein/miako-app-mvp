@@ -43,27 +43,30 @@ class IntentClassifier(Flow[IntentState]):
         self.llm = GroqLLM()
 
     @start()
-    async def intent_classifier(self):
-        self.llm.add_system(RESOURCES.intent_classifier_instructions)
-        self.llm.add_user(self.state.input_message)
-        response = await self.llm.groq_message_object(model=MODEL.maverick)
-        return response
+
+    # @start()
+    # async def intent_classifier(self):
+    #     self.llm.add_system(RESOURCES.intent_classifier_instructions)
+    #     self.llm.add_user(self.state.input_message)
+    #     response = await self.llm.groq_message_object(model=MODEL.maverick)
+    #     return response
 
 
-    @listen(intent_classifier)
-    def data_parsing(self, initial_intent_data: ChatCompletionMessage | str):
-        if isinstance(initial_intent_data, ChatCompletionMessage):
-            intent_string = initial_intent_data.content
-        else:
-            intent_string = initial_intent_data
 
-        intent_json = self._intent_validate_json(intent_string)
-        return intent_json
-
-    @listen(data_parsing)
-    def intent_action(self, intent_json: IntentResponse):
-        action = self._intent_action_router(intent_data=intent_json)
-        return action
+    # @listen(intent_classifier)
+    # def data_parsing(self, initial_intent_data: ChatCompletionMessage | str):
+    #     if isinstance(initial_intent_data, ChatCompletionMessage):
+    #         intent_string = initial_intent_data.content
+    #     else:
+    #         intent_string = initial_intent_data
+    #
+    #     intent_json = self._intent_validate_json(intent_string)
+    #     return intent_json
+    #
+    # @listen(data_parsing)
+    # def intent_action(self, intent_json: IntentResponse):
+    #     action = self._intent_action_router(intent_data=intent_json)
+    #     return action
 
 
     @property
@@ -78,25 +81,25 @@ class IntentClassifier(Flow[IntentState]):
 
 
 
-    @staticmethod
-    def _intent_action_router(intent_data: IntentResponse):
-        intent_action = intent_data.action
-        if intent_action == "web_search":
-            return "WEB_SEARCH"
-        elif intent_action == "rag_query":
-            return "RAG_QUERY"
-        elif intent_action == "direct_reply":
-            return "DIRECT_REPLY"
-        elif intent_action == "system_op":
-            return "SYSTEM_OP"
-        else:
-            return "UNKNOWN"
-
-
-    @staticmethod
-    def _intent_validate_json(data: str):
-        _intent_json = IntentResponse.model_validate_json(data)
-        return _intent_json
+    # @staticmethod
+    # def _intent_action_router(intent_data: IntentResponse):
+    #     intent_action = intent_data.action
+    #     if intent_action == "web_search":
+    #         return "WEB_SEARCH"
+    #     elif intent_action == "rag_query":
+    #         return "RAG_QUERY"
+    #     elif intent_action == "direct_reply":
+    #         return "DIRECT_REPLY"
+    #     elif intent_action == "system_op":
+    #         return "SYSTEM_OP"
+    #     else:
+    #         return "UNKNOWN"
+    #
+    #
+    # @staticmethod
+    # def _intent_validate_json(data: str):
+    #     _intent_json = IntentResponse.model_validate_json(data)
+    #     return _intent_json
 
     @staticmethod
     def memory_parsing_to_string(input_list: list[Any]) -> str:
