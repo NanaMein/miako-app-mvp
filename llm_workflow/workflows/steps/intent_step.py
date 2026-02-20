@@ -1,5 +1,5 @@
 from typing import Union, Any, List
-from crewai.flow.flow import Flow, start, listen, and_, or_
+from crewai.flow.flow import Flow, start, listen, and_, or_, router
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from llm_workflow.prompts.prompt_library import DataExtractorLibrary
@@ -36,19 +36,37 @@ class IntentState(BaseModel):
     user_id: Union[str, Any] = ""
     translated_user_input: str = ""
     original_user_input: str = ""
+    in_development_phase: bool = False
+    in_error_mode: bool = False
+    response_from_first_phase: str = ""
+    latest_error_catch: str = ""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class IntentClassifier(Flow[IntentState]):
     def __init__(self, **kwargs: Any):
+        self._translated_memory: MessageStorage | None = None
+        self._original_memory: MessageStorage | None = None
         super().__init__(**kwargs)
         self.llm = GroqLLM()
 
 
+
+
     @start()
-    async def start_with_data_extraction(self):
-        system_prompt, user_prompt = await self._prompts_for_first_phase_mock()
+    async def start_or_testing_phase(self):
+        if self.state.in_development_phase:
+            print('TESTING PHASE')
+            return await self._prompts_for_first_phase_mock()
+        else:
+            print("PRODUCTION PHASE")
+            return await self._prompts_for_first_phase()
+
+
+    @listen(start_or_testing_phase)
+    async def start_with_data_extraction(self, prompts: tuple[str, str]):
+        system_prompt, user_prompt = prompts
         self.llm.add_system(system_prompt)
         self.llm.add_user(user_prompt)
         response = await self.llm.groq_message_object(model=MODEL.scout, return_as_object=True, temperature=.1)
@@ -61,22 +79,55 @@ class IntentClassifier(Flow[IntentState]):
         else:
             response = _resp
 
-        is_valid, error = self._validate_extraction_response(response)
+        if self.state.in_error_mode:
+            is_valid = False
+            error = "Hello world Error testing"
+        else:
+            is_valid, error = self._validate_extraction_response(response)
+
         if is_valid:
             return response
         else:
-            return error
+            self.state.latest_error_catch = error
+            return "error_fallback_logic"
+
+    @router(data_parsing)
+    def checking_data_validation(self, data: str):
+        if data == "error_fallback_logic":
+            return data
+        elif data != "error_fallback_logic":
+            self.state.response_from_first_phase = data
+            return "no_error_fallback_logic"
+        else:
+            return data
+
+
+    @listen("error_fallback_logic")
+    def error_fallback_catcher(self):
+        print("=== STARTING ERROR FALLBACK LOGIC ===")
+        return self.state.latest_error_catch
+
+    @listen("no_error_fallback_logic")
+    def success_no_error(self):
+        print("=== STARTING SUCCESS and no FALLBACK LOGIC ===")
+        return self.state.response_from_first_phase
+
+
 
 
     @property
     def original_memory(self):
-        _user_id = f"original_x_{self.state.user_id}"
-        return MessageStorage(user_id=_user_id)
+        if self._original_memory is None:
+            _user_id = f"original_x_{self.state.user_id}"
+            self._original_memory = MessageStorage(user_id=_user_id)
+        return self._original_memory
 
     @property
     def translated_memory(self):
-        _user_id = f"translated_x_{self.state.user_id}"
-        return MessageStorage(user_id=_user_id)
+        if self._translated_memory is None:
+            _user_id = f"translated_x_{self.state.user_id}"
+            self._translated_memory = MessageStorage(user_id=_user_id)
+        return self._translated_memory
 
 
 
@@ -118,7 +169,10 @@ class IntentClassifier(Flow[IntentState]):
             documentation_context=RESOURCES.documentation_context
         )
         system_prompt = RESOURCES.system_first_phase
-
+        print('=== STARTING PROMPTS ===')
+        print(system_prompt, "\n")
+        print(user_prompt, "\n")
+        print("===ENDING PROMPTS===")
         return system_prompt, user_prompt
 
     async def _prompts_for_first_phase_mock(self):
@@ -146,7 +200,9 @@ class IntentClassifier(Flow[IntentState]):
         print("===ENDING PROMPTS===")
         return system_prompt, user_prompt
 
+
 x = IntentClassifier()
-_xx = x.kickoff_async()
+_inputs = {"user_id":"test","translated_user_input":fake_memory.taglish_user_input}
+_xx = x.kickoff_async(inputs=_inputs)
 xxx = asyncio.run(_xx)
 print(xxx)
