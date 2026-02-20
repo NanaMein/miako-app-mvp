@@ -1,4 +1,4 @@
-from typing import Union, Any, Literal, Optional
+from typing import Union, Any
 from crewai.flow.flow import Flow, start, listen, and_, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
@@ -83,20 +83,11 @@ class AppResources:
 RESOURCES = AppResources()
 
 
-class IntentResponse(BaseModel):
-    reasoning: str
-    confidence: float
-    action: Literal["web_search", "rag_query", "direct_reply", "system_op"]
-    parameters: dict
-
 
 class IntentState(BaseModel):
     user_id: Union[str, Any] = ""
-    input_message: str = ""
     translated_user_input: str = ""
     original_user_input: str = ""
-    unparsed_intent_data: str = ""
-    intent_data: Optional[IntentResponse] = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -108,32 +99,20 @@ class IntentClassifier(Flow[IntentState]):
 
 
     @start()
-    def start_with_data_extraction(self):
-        pass
+    async def start_with_data_extraction(self):
+        system_prompt, user_prompt = self._prompts_for_first_phase_mock()
+        self.llm.add_system(system_prompt)
+        self.llm.add_user(user_prompt)
+        response = await self.llm.groq_message_object(model=MODEL.scout, return_as_object=False, temperature=.1)
+        return response
 
-    # @start()
-    # async def intent_classifier(self):
-    #     self.llm.add_system(RESOURCES.intent_classifier_instructions)
-    #     self.llm.add_user(self.state.input_message)
-    #     response = await self.llm.groq_message_object(model=MODEL.maverick)
-    #     return response
-
-
-
-    # @listen(intent_classifier)
-    # def data_parsing(self, initial_intent_data: ChatCompletionMessage | str):
-    #     if isinstance(initial_intent_data, ChatCompletionMessage):
-    #         intent_string = initial_intent_data.content
-    #     else:
-    #         intent_string = initial_intent_data
-    #
-    #     intent_json = self._intent_validate_json(intent_string)
-    #     return intent_json
-    #
-    # @listen(data_parsing)
-    # def intent_action(self, intent_json: IntentResponse):
-    #     action = self._intent_action_router(intent_data=intent_json)
-    #     return action
+    @listen(start_with_data_extraction)
+    def data_parsing(self, _resp):
+        if isinstance(_resp, ChatCompletionMessage):
+            response = _resp.content
+        else:
+            response = _resp
+        return response
 
 
     @property
@@ -147,26 +126,6 @@ class IntentClassifier(Flow[IntentState]):
         return MessageStorage(user_id=_user_id)
 
 
-
-    # @staticmethod
-    # def _intent_action_router(intent_data: IntentResponse):
-    #     intent_action = intent_data.action
-    #     if intent_action == "web_search":
-    #         return "WEB_SEARCH"
-    #     elif intent_action == "rag_query":
-    #         return "RAG_QUERY"
-    #     elif intent_action == "direct_reply":
-    #         return "DIRECT_REPLY"
-    #     elif intent_action == "system_op":
-    #         return "SYSTEM_OP"
-    #     else:
-    #         return "UNKNOWN"
-    #
-    #
-    # @staticmethod
-    # def _intent_validate_json(data: str):
-    #     _intent_json = IntentResponse.model_validate_json(data)
-    #     return _intent_json
 
     @staticmethod
     def memory_parsing_to_string(input_list: list[Any]) -> str:
@@ -188,11 +147,10 @@ class IntentClassifier(Flow[IntentState]):
 
 
         user_prompt = RESOURCES.user_first_phase.format(
-            user_input_translated=self.state.input_message,
+            translated_user_input=self.state.translated_user_input,
             original_conversation=original_str,
             translated_conversation=translated_str,
             documentation_context="None"
-
         )
         system_prompt = RESOURCES.system_first_phase
 
