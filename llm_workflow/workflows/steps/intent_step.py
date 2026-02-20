@@ -2,73 +2,13 @@ from typing import Union, Any
 from crewai.flow.flow import Flow, start, listen, and_, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
-from llm_workflow.prompts.prompt_library import IntentLibrary, DataExtractorLibrary
+from llm_workflow.prompts.prompt_library import DataExtractorLibrary
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
+from llm_workflow.memory.short_term_memory._fake_memory_testing import fake_memory
 from groq.types.chat import ChatCompletionMessage
 from jinja2 import Template
 import asyncio
 
-
-# SIMULATED CONVERSATION 1: TAGALOG/TAGLISH
-# Context: User is skeptical about performance and cost.
-
-taglish_conversation_history = [
-    {
-        "role": "user",
-        "content": "Hi, tanong lang, mabilis ba talaga to? Kasi yung luma naming chatbot sobrang bagal.",
-        "metadata": {"timestamp": "2023-10-27 10:00:00", "user_id": "pinoy_dev_01"}
-    },
-    {
-        "role": "assistant",
-        "content": "Opo! Miako handles thousands of users with sub-second latency kasi naka-Groq LPU siya. Hindi siya n8n na mabagal.",
-        "metadata": {"timestamp": "2023-10-27 10:00:05", "model": "miako-v1"}
-    },
-    {
-        "role": "user",
-        "content": "Weh? Di nga? Pano pag sabay-sabay gumamit? Edi lag yan panigurado.",
-        "metadata": {"timestamp": "2023-10-27 10:00:15", "user_id": "pinoy_dev_01"}
-    },
-    {
-        "role": "assistant",
-        "content": "Hindi po. Designed siya for high concurrency using Async FastAPI. May isolation din per user kaya walang lag.",
-        "metadata": {"timestamp": "2023-10-27 10:00:20", "model": "miako-v1"}
-    },
-    {
-        "role": "user",
-        "content": "Ah ganun ba. Eh pano kung nagonline lahat, di ba mahal yun? Yung budget kasi namin limited lang.",
-        "metadata": {"timestamp": "2023-10-27 10:00:35", "user_id": "pinoy_dev_01"}
-    }
-]
-
-# FOR THE TRANSLATED MEMORY MOCK (What the LLM 'sees' as English)
-taglish_translated_history = [
-    {
-        "role": "user",
-        "content": "Hi, just asking, is this really fast? Because our old chatbot was very slow.",
-        "metadata": {"timestamp": "2023-10-27 10:00:00"}
-    },
-    {
-        "role": "assistant",
-        "content": "Yes! Miako handles thousands of users with sub-second latency because it uses Groq LPU. It is not like n8n which is slow.",
-        "metadata": {"timestamp": "2023-10-27 10:00:05"}
-    },
-    {
-        "role": "user",
-        "content": "Really? No way? What if everyone uses it at the same time? That would surely lag.",
-        "metadata": {"timestamp": "2023-10-27 10:00:15"}
-    },
-    {
-        "role": "assistant",
-        "content": "No sir. It is designed for high concurrency using Async FastAPI. There is also isolation per user so there is no lag.",
-        "metadata": {"timestamp": "2023-10-27 10:00:20"}
-    },
-    {
-        "role": "user",
-        "content": "Ah is that so. But what if everyone goes online, isn't that expensive? Our budget is limited.",
-        "metadata": {"timestamp": "2023-10-27 10:00:35"}
-    }
-]
-taglish_user_input = "Ah is that so. But what if everyone goes online, isn't that expensive? Our budget is limited."
 
 class AppResources:
     _data_extractor_prompts = DataExtractorLibrary()
@@ -148,7 +88,7 @@ class IntentClassifier(Flow[IntentState]):
             translated_user_input=self.state.translated_user_input,
             original_conversation=original_str,
             translated_conversation=translated_str,
-            documentation_context="None"
+            documentation_context=RESOURCES.documentation_context
         )
         system_prompt = RESOURCES.system_first_phase
 
@@ -156,17 +96,17 @@ class IntentClassifier(Flow[IntentState]):
 
     async def _prompts_for_first_phase_mock(self):
         _orig_mock_list = await self.original_memory._get_user_memory()
-        _orig_mock_list.messages.extend(taglish_conversation_history)
+        _orig_mock_list.messages.extend(fake_memory.taglish_original_history)
         orig_list = await self.original_memory.get_messages(include_metadata=True)
         original_str = self.memory_parsing_to_string(orig_list)
 
         _trans_mock_list = await self.translated_memory._get_user_memory()
-        _trans_mock_list.messages.extend(taglish_translated_history)
+        _trans_mock_list.messages.extend(fake_memory.taglish_translated_history)
         trans_list = await self.translated_memory.get_messages(include_metadata=True)
         translated_str = self.memory_parsing_to_string(trans_list)
 
         user_prompt = RESOURCES.user_first_phase.render(
-            translated_user_input=taglish_user_input,
+            translated_user_input=fake_memory.taglish_user_input,
             original_conversation=original_str,
             translated_conversation=translated_str,
             documentation_context=RESOURCES.documentation_context
