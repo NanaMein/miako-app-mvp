@@ -71,8 +71,6 @@ taglish_translated_history = [
 taglish_user_input = "Ah is that so. But what if everyone goes online, isn't that expensive? Our budget is limited."
 
 class AppResources:
-    _intent_library = IntentLibrary()
-    intent_classifier_instructions = _intent_library.get_prompt("intent_classifier.current")
     _data_extractor_prompts = DataExtractorLibrary()
     _user_first_phase_template = _data_extractor_prompts.get_prompt("user-first-phase")
 
@@ -100,10 +98,10 @@ class IntentClassifier(Flow[IntentState]):
 
     @start()
     async def start_with_data_extraction(self):
-        system_prompt, user_prompt = self._prompts_for_first_phase_mock()
+        system_prompt, user_prompt = await self._prompts_for_first_phase_mock()
         self.llm.add_system(system_prompt)
         self.llm.add_user(user_prompt)
-        response = await self.llm.groq_message_object(model=MODEL.scout, return_as_object=False, temperature=.1)
+        response = await self.llm.groq_message_object(model=MODEL.scout, return_as_object=True, temperature=.1)
         return response
 
     @listen(start_with_data_extraction)
@@ -146,7 +144,7 @@ class IntentClassifier(Flow[IntentState]):
         translated_str = self.memory_parsing_to_string(_tran_list)
 
 
-        user_prompt = RESOURCES.user_first_phase.format(
+        user_prompt = RESOURCES.user_first_phase.render(
             translated_user_input=self.state.translated_user_input,
             original_conversation=original_str,
             translated_conversation=translated_str,
@@ -156,9 +154,16 @@ class IntentClassifier(Flow[IntentState]):
 
         return system_prompt, user_prompt
 
-    def _prompts_for_first_phase_mock(self):
-        original_str = self.memory_parsing_to_string(taglish_conversation_history)
-        translated_str = self.memory_parsing_to_string(taglish_translated_history)
+    async def _prompts_for_first_phase_mock(self):
+        _orig_mock_list = await self.original_memory._get_user_memory()
+        _orig_mock_list.messages.extend(taglish_conversation_history)
+        orig_list = await self.original_memory.get_messages(include_metadata=True)
+        original_str = self.memory_parsing_to_string(orig_list)
+
+        _trans_mock_list = await self.translated_memory._get_user_memory()
+        _trans_mock_list.messages.extend(taglish_translated_history)
+        trans_list = await self.translated_memory.get_messages(include_metadata=True)
+        translated_str = self.memory_parsing_to_string(trans_list)
 
         user_prompt = RESOURCES.user_first_phase.render(
             translated_user_input=taglish_user_input,
