@@ -1,6 +1,6 @@
-from typing import Union, Any
+from typing import Union, Any, List
 from crewai.flow.flow import Flow, start, listen, and_, or_
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from llm_workflow.prompts.prompt_library import DataExtractorLibrary
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
@@ -8,6 +8,7 @@ from llm_workflow.memory.short_term_memory._fake_memory_testing import fake_memo
 from groq.types.chat import ChatCompletionMessage
 from jinja2 import Template
 import asyncio
+import json
 
 
 class AppResources:
@@ -20,6 +21,15 @@ class AppResources:
 
 RESOURCES = AppResources()
 
+class Fact(BaseModel):
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    topic: str
+    fact: str
+    relevance_reason: str
+
+class ExtractionResponse(BaseModel):
+    facts: List[Fact]
+    message: str | None = None
 
 
 class IntentState(BaseModel):
@@ -50,7 +60,12 @@ class IntentClassifier(Flow[IntentState]):
             response = _resp.content
         else:
             response = _resp
-        return response
+
+        is_valid, error = self._validate_extraction_response(response)
+        if is_valid:
+            return response
+        else:
+            return error
 
 
     @property
@@ -76,6 +91,18 @@ class IntentClassifier(Flow[IntentState]):
             _list.append(msg_str)
         full_str = "".join(_list)
         return full_str
+
+    def _validate_extraction_response(self, input_str: str) -> tuple[bool, str | None]:
+        try:
+            ExtractionResponse.model_validate_json(input_str)
+            return True, None
+        except json.JSONDecodeError as je:
+            return False, f"Invalid JSON: {je}"
+        except ValidationError as ve:
+            first_error = ve.errors()[0]
+            field = ".".join(str(x) for x in first_error["loc"])
+            return False, f"{field}: {first_error["msg"]}"
+
 
     async def _prompts_for_first_phase(self) -> tuple[str, str]:
         _orig_list = await self.original_memory.get_messages(include_metadata=True)
