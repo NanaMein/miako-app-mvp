@@ -36,8 +36,6 @@ class IntentState(BaseModel):
     user_id: Union[str, Any] = ""
     translated_user_input: str = ""
     original_user_input: str = ""
-    in_development_phase: bool = False
-    in_error_mode: bool = False
     response_from_first_phase: str = ""
     latest_error_catch: str = ""
 
@@ -48,6 +46,8 @@ class IntentClassifier(Flow[IntentState]):
     def __init__(self, **kwargs: Any):
         self._translated_memory: MessageStorage | None = None
         self._original_memory: MessageStorage | None = None
+        self.in_development_phase: bool = False
+        self.in_error_mode: bool = False
         super().__init__(**kwargs)
         self.llm = GroqLLM()
 
@@ -56,9 +56,12 @@ class IntentClassifier(Flow[IntentState]):
 
     @start()
     async def start_or_testing_phase(self):
-        if self.state.in_development_phase:
+        if self.in_development_phase:
             print('TESTING PHASE')
-            return await self._prompts_for_first_phase_mock()
+            return await _prompts_for_first_phase_mock(
+                original_memory=self.original_memory,
+                translated_memory=self.translated_memory
+            )
         else:
             print("PRODUCTION PHASE")
             return await self._prompts_for_first_phase()
@@ -79,7 +82,7 @@ class IntentClassifier(Flow[IntentState]):
         else:
             response = _resp
 
-        if self.state.in_error_mode:
+        if self.in_error_mode:
             is_valid = False
             error = "Hello world Error testing"
         else:
@@ -175,34 +178,38 @@ class IntentClassifier(Flow[IntentState]):
         print("===ENDING PROMPTS===")
         return system_prompt, user_prompt
 
-    async def _prompts_for_first_phase_mock(self):
-        _orig_mock_list = await self.original_memory._get_user_memory()
-        _orig_mock_list.messages.extend(fake_memory.taglish_original_history)
-        orig_list = await self.original_memory.get_messages(include_metadata=True)
-        original_str = self.memory_parsing_to_string(orig_list)
 
-        _trans_mock_list = await self.translated_memory._get_user_memory()
-        _trans_mock_list.messages.extend(fake_memory.taglish_translated_history)
-        trans_list = await self.translated_memory.get_messages(include_metadata=True)
-        translated_str = self.memory_parsing_to_string(trans_list)
+async def _prompts_for_first_phase_mock(
+        original_memory: MessageStorage,
+        translated_memory: MessageStorage,
+):
+    _orig_mock_list = await original_memory._get_user_memory()
+    _orig_mock_list.messages.extend(fake_memory.taglish_original_history)
+    orig_list = await original_memory.get_messages(include_metadata=True)
+    original_str = IntentClassifier.memory_parsing_to_string(orig_list)
 
-        user_prompt = RESOURCES.user_first_phase.render(
-            translated_user_input=fake_memory.taglish_user_input,
-            original_conversation=original_str,
-            translated_conversation=translated_str,
-            documentation_context=RESOURCES.documentation_context
-         )
+    _trans_mock_list = await translated_memory._get_user_memory()
+    _trans_mock_list.messages.extend(fake_memory.taglish_translated_history)
+    trans_list = await translated_memory.get_messages(include_metadata=True)
+    translated_str = IntentClassifier.memory_parsing_to_string(trans_list)
 
-        system_prompt = RESOURCES.system_first_phase
-        print('=== STARTING PROMPTS ===')
-        print( system_prompt, "\n")
-        print( user_prompt, "\n")
-        print("===ENDING PROMPTS===")
-        return system_prompt, user_prompt
+    user_prompt = RESOURCES.user_first_phase.render(
+        translated_user_input=fake_memory.taglish_user_input,
+        original_conversation=original_str,
+        translated_conversation=translated_str,
+        documentation_context=RESOURCES.documentation_context
+     )
+
+    system_prompt = RESOURCES.system_first_phase
+    print('=== STARTING PROMPTS ===')
+    print( system_prompt, "\n")
+    print( user_prompt, "\n")
+    print("===ENDING PROMPTS===")
+    return system_prompt, user_prompt
 
 
-x = IntentClassifier()
+int_cla = IntentClassifier()
 _inputs = {"user_id":"test","translated_user_input":fake_memory.taglish_user_input}
-_xx = x.kickoff_async(inputs=_inputs)
-xxx = asyncio.run(_xx)
-print(xxx)
+int_cla_kick = int_cla.kickoff_async(inputs=_inputs)
+kick_resp = asyncio.run(int_cla_kick)
+print(kick_resp)
