@@ -14,10 +14,15 @@ import json
 class AppResources:
     _data_extractor_prompts = DataExtractorLibrary()
     _user_first_phase_template = _data_extractor_prompts.get_prompt("user-first-phase")
+    _user_second_phase_template = _data_extractor_prompts.get_prompt("user-second-phase")
 
     system_first_phase = _data_extractor_prompts.get_prompt("system-first-phase")
     user_first_phase = Template(_user_first_phase_template)
     documentation_context = _data_extractor_prompts.get_prompt("documentation-context")
+
+    system_second_phase = _data_extractor_prompts.get_prompt("system-second-phase")
+    user_second_phase = Template(_user_second_phase_template, enable_async=True)
+
 
 RESOURCES = AppResources()
 
@@ -46,10 +51,11 @@ class IntentClassifier(Flow[IntentState]):
     def __init__(self, **kwargs: Any):
         self._translated_memory: MessageStorage | None = None
         self._original_memory: MessageStorage | None = None
-        self.in_development_phase: bool = False
+        self.in_development_phase: bool = True
         self.in_error_mode: bool = False
         super().__init__(**kwargs)
         self.llm = GroqLLM()
+        self.manager_llm = GroqLLM()
 
 
 
@@ -116,6 +122,29 @@ class IntentClassifier(Flow[IntentState]):
         return self.state.response_from_first_phase
 
 
+    @listen(success_no_error)
+    async def prompts_for_manager(self):
+        translated_history = await self.translated_memory.get_messages(include_metadata=True)
+        original_history = await self.original_memory.get_messages(include_metadata=True)
+        user_prompt = await RESOURCES.user_second_phase.render_async(
+            translated_user_input=self.state.translated_user_input,
+            translated_conversation_history=translated_history,
+            original_conversation_history=original_history,
+            extracted_data_context=self.state.response_from_first_phase
+        )
+        system_prompt = RESOURCES.system_second_phase
+        return system_prompt, user_prompt
+
+    @listen(prompts_for_manager)
+    async def manager_validator(self, _prompts: tuple[str, str]):
+        system_prompt, user_prompt = _prompts
+        _llm = self.manager_llm
+        self.manager_llm.add_system(system_prompt)
+        self.manager_llm.add_user(user_prompt)
+        response = await self.manager_llm.groq_chat(model=MODEL.maverick, temperature=.1)
+        return response
+
+
 
 
     @property
@@ -165,7 +194,7 @@ class IntentClassifier(Flow[IntentState]):
         translated_str = self.memory_parsing_to_string(_tran_list)
 
 
-        user_prompt = RESOURCES.user_first_phase.render(
+        user_prompt =  RESOURCES.user_first_phase.render(
             translated_user_input=self.state.translated_user_input,
             original_conversation=original_str,
             translated_conversation=translated_str,
