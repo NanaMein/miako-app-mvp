@@ -1,8 +1,8 @@
 from typing import Union, Any, List
-from crewai.flow.flow import Flow, start, listen, and_, or_, router
+from crewai.flow.flow import Flow, start, listen, router
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
-from llm_workflow.prompts.prompt_library import DataExtractorLibrary
+from llm_workflow.prompts.prompt_library import IntentLibrary
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.memory.short_term_memory._fake_memory_testing import fake_memory
 from groq.types.chat import ChatCompletionMessage
@@ -11,20 +11,24 @@ import asyncio
 import json
 
 
-class AppResources:
-    _data_extractor_prompts = DataExtractorLibrary()
-    _user_first_phase_template = _data_extractor_prompts.get_prompt("user-first-phase")
-    _user_second_phase_template = _data_extractor_prompts.get_prompt("user-second-phase")
-
-    system_first_phase = _data_extractor_prompts.get_prompt("system-first-phase")
-    user_first_phase = Template(_user_first_phase_template)
-    documentation_context = _data_extractor_prompts.get_prompt("documentation-context")
-
-    system_second_phase = _data_extractor_prompts.get_prompt("system-second-phase")
-    user_second_phase = Template(_user_second_phase_template, enable_async=True)
 
 
-RESOURCES = AppResources()
+
+class Prompts:
+    _intent_library = IntentLibrary()
+    _data_extractor_base_template = _intent_library.get_prompt("user-prompt.data-extractor")
+    _fact_validator_base_template = _intent_library.get_prompt("user-prompt.facts-validator")
+
+    system_data_extractor = _intent_library.get_prompt("system-prompt.data-extractor")
+    user_data_extractor_template = Template(_data_extractor_base_template, enable_async=True)
+
+    system_fact_validator = _intent_library.get_prompt("system-prompt.facts-validator")
+    user_fact_validator_template = Template(_fact_validator_base_template, enable_async=True)
+
+    documentation_context = _intent_library.get_prompt("documentation-context")
+
+
+PROMPTS = Prompts()
 
 class Fact(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
@@ -41,22 +45,21 @@ class IntentState(BaseModel):
     user_id: Union[str, Any] = ""
     translated_user_input: str = ""
     original_user_input: str = ""
-    response_from_first_phase: str = ""
-    latest_error_catch: str = ""
+    current_data_extraction: str = ""
+    current_fact_validation: str = ""
+    error_exception: Exception | None = None
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class IntentClassifier(Flow[IntentState]):
+class _IntentClassifier(Flow[IntentState]):
     def __init__(self, **kwargs: Any):
         self._translated_memory: MessageStorage | None = None
         self._original_memory: MessageStorage | None = None
-        self.in_development_phase: bool = True
-        self.in_error_mode: bool = False
+        self.in_development_phase: bool = False
         super().__init__(**kwargs)
-        self.llm = GroqLLM()
-        self.manager_llm = GroqLLM()
-
+        self.extraction_worker = GroqLLM()
+        self.validator_worker = GroqLLM()
 
 
 
@@ -75,76 +78,94 @@ class IntentClassifier(Flow[IntentState]):
 
     @listen(start_or_testing_phase)
     async def start_with_data_extraction(self, prompts: tuple[str, str]):
-        system_prompt, user_prompt = prompts
-        self.llm.add_system(system_prompt)
-        self.llm.add_user(user_prompt)
-        response = await self.llm.groq_message_object(model=MODEL.scout, return_as_object=True, temperature=.1)
-        return response
+        try:
+            system_prompt, user_prompt = prompts
+            self.extraction_worker.add_system(system_prompt)
+            self.extraction_worker.add_user(user_prompt)
+            response = await self.extraction_worker.groq_message_object(model=MODEL.scout, return_as_object=True, temperature=.1)
+            return response
+        except Exception as ex:
+            return ex
 
     @listen(start_with_data_extraction)
-    def data_parsing(self, _resp):
+    def validating_extracted_data(self, _resp):
+        if isinstance(_resp, Exception):
+            self.state.error_exception = _resp
+            return "error_data_extraction"
+
         if isinstance(_resp, ChatCompletionMessage):
             response = _resp.content
         else:
-            response = _resp
+            response = str(_resp)
 
-        if self.in_error_mode:
-            is_valid = False
-            error = "Hello world Error testing"
-        else:
-            is_valid, error = self._validate_extraction_response(response)
-
+        is_valid, error = self._validating_data_extraction_response(response)
         if is_valid:
+
+            self.state.current_data_extraction = response
             return response
+
         else:
             self.state.latest_error_catch = error
-            return "error_fallback_logic"
+            return "error_data_extraction"
 
-    @router(data_parsing)
-    def checking_data_validation(self, data: str):
-        if data == "error_fallback_logic":
-            return data
-        elif data != "error_fallback_logic":
-            self.state.response_from_first_phase = data
-            return "no_error_fallback_logic"
+    @router(validating_extracted_data)
+    def data_extraction_router(self, data: str):
+        if data == "error_data_extraction":
+            return "ERROR"
+
         else:
-            return data
+            return "DATA_EXTRACTION_PASSED"
 
+    @listen("DATA_EXTRACTION_PASSED")
+    async def generating_prompts_for_validator(self):
+        try:
+            translated_history = await self.translated_memory.get_messages(include_metadata=True)
+            original_history = await self.original_memory.get_messages(include_metadata=True)
 
-    @listen("error_fallback_logic")
-    def error_fallback_catcher(self):
-        print("=== STARTING ERROR FALLBACK LOGIC ===")
-        return self.state.latest_error_catch
+            user_prompt = await PROMPTS.user_fact_validator_template.render_async(
+                translated_user_input=self.state.translated_user_input,
+                translated_conversation_history=translated_history,
+                original_conversation_history=original_history,
+                extracted_data_context=self.state.current_data_extraction
+            )
+            system_prompt = PROMPTS.system_fact_validator
+            return system_prompt, user_prompt
+        except Exception as ex:
+            return ex
 
-    @listen("no_error_fallback_logic")
-    def success_no_error(self):
-        print("=== STARTING SUCCESS and no FALLBACK LOGIC ===")
-        return self.state.response_from_first_phase
+    @listen(generating_prompts_for_validator)
+    async def facts_validator(self, _prompts: tuple[str, str] | Exception):
+        if isinstance(_prompts, Exception):
+            self.state.error_exception = _prompts
+            return "error_fact_validation"
+        try:
+            system_prompt, user_prompt = _prompts
+            self.validator_worker.add_system(system_prompt)
+            self.validator_worker.add_user(user_prompt)
+            facts_response = await self.validator_worker.groq_chat(
+                model=MODEL.maverick, temperature=.1
+            )
+            self.state.current_fact_validation = facts_response
+            return facts_response
 
+        except Exception as ex:
+            self.state.error_exception = ex
+            return "error_fact_validation"
 
-    @listen(success_no_error)
-    async def prompts_for_manager(self):
-        translated_history = await self.translated_memory.get_messages(include_metadata=True)
-        original_history = await self.original_memory.get_messages(include_metadata=True)
-        user_prompt = await RESOURCES.user_second_phase.render_async(
-            translated_user_input=self.state.translated_user_input,
-            translated_conversation_history=translated_history,
-            original_conversation_history=original_history,
-            extracted_data_context=self.state.response_from_first_phase
-        )
-        system_prompt = RESOURCES.system_second_phase
-        return system_prompt, user_prompt
+    @router(facts_validator)
+    def fact_validator_router(self, facts_response: str):
+        if facts_response == "error_fact_validation":
+            return "ERROR"
+        else:
+            return "FACT_VALIDATION_PASSED"
 
-    @listen(prompts_for_manager)
-    async def manager_validator(self, _prompts: tuple[str, str]):
-        system_prompt, user_prompt = _prompts
-        _llm = self.manager_llm
-        self.manager_llm.add_system(system_prompt)
-        self.manager_llm.add_user(user_prompt)
-        response = await self.manager_llm.groq_chat(model=MODEL.maverick, temperature=.1)
-        return response
+    @listen("FACT_VALIDATION_PASSED")
+    def validation_passed(self):
+        return self.state.current_fact_validation
 
-
+    @listen("ERROR")
+    def error_exception_catcher(self):
+        return self.state.error_exception
 
 
     @property
@@ -169,18 +190,26 @@ class IntentClassifier(Flow[IntentState]):
         for msg in input_list:
             role = msg["role"].upper()
             content = msg["content"]
-            metadata = msg["metadata"]
-            msg_str = f"{role}:\n{content}\nMetadata:\n{metadata}\n===\n"
+            metadata = msg.get("metadata", "No Metadata Available")
+
+            if metadata and metadata != "No Metadata Available":
+                msg_str = f"{role}:\n{content}\nMetadata:\n{metadata}\n===\n"
+            else:
+                msg_str = f"{role}:\n{content}\n===\n"
+
             _list.append(msg_str)
         full_str = "".join(_list)
         return full_str
 
-    def _validate_extraction_response(self, input_str: str) -> tuple[bool, str | None]:
+    @staticmethod
+    def _validating_data_extraction_response(input_str: str) -> tuple[bool, str | None]:
         try:
             ExtractionResponse.model_validate_json(input_str)
             return True, None
+
         except json.JSONDecodeError as je:
             return False, f"Invalid JSON: {je}"
+
         except ValidationError as ve:
             first_error = ve.errors()[0]
             field = ".".join(str(x) for x in first_error["loc"])
@@ -194,13 +223,13 @@ class IntentClassifier(Flow[IntentState]):
         translated_str = self.memory_parsing_to_string(_tran_list)
 
 
-        user_prompt =  RESOURCES.user_first_phase.render(
+        user_prompt = await PROMPTS.user_data_extractor_template.render_async(
             translated_user_input=self.state.translated_user_input,
             original_conversation=original_str,
             translated_conversation=translated_str,
-            documentation_context=RESOURCES.documentation_context
+            documentation_context=PROMPTS.documentation_context
         )
-        system_prompt = RESOURCES.system_first_phase
+        system_prompt = PROMPTS.system_data_extractor
         print('=== STARTING PROMPTS ===')
         print(system_prompt, "\n")
         print(user_prompt, "\n")
@@ -222,23 +251,46 @@ async def _prompts_for_first_phase_mock(
     trans_list = await translated_memory.get_messages(include_metadata=True)
     translated_str = IntentClassifier.memory_parsing_to_string(trans_list)
 
-    user_prompt = RESOURCES.user_first_phase.render(
+    user_prompt = await PROMPTS.user_data_extractor_template.render_async(
         translated_user_input=fake_memory.taglish_user_input,
         original_conversation=original_str,
         translated_conversation=translated_str,
-        documentation_context=RESOURCES.documentation_context
-     )
+        documentation_context=PROMPTS.documentation_context
+    )
 
-    system_prompt = RESOURCES.system_first_phase
+    system_prompt = PROMPTS.system_data_extractor
     print('=== STARTING PROMPTS ===')
     print( system_prompt, "\n")
     print( user_prompt, "\n")
     print("===ENDING PROMPTS===")
     return system_prompt, user_prompt
 
+# int_cla = IntentClassifier()
+# _inputs = {"user_id":"test","translated_user_input":fake_memory.taglish_user_input}
+# int_cla_kick = int_cla.kickoff_async(inputs=_inputs)
+# kick_resp = asyncio.run(int_cla_kick)
+# print(kick_resp)
 
-int_cla = IntentClassifier()
-_inputs = {"user_id":"test","translated_user_input":fake_memory.taglish_user_input}
-int_cla_kick = int_cla.kickoff_async(inputs=_inputs)
-kick_resp = asyncio.run(int_cla_kick)
-print(kick_resp)
+
+class IntentFlow:
+    def __init__(
+        self,
+        user_id: Union[str, Any],
+        translated_user_input: str = "",
+        original_user_input: str = ""
+    ):
+        self.translated_user_input = translated_user_input
+        self.original_user_input = original_user_input
+        self.user_id = user_id
+        self.flow = _IntentClassifier()
+
+    async def run(self):
+        flow = await self.flow.kickoff_async(inputs={
+            "user_id": self.user_id,
+            "translated_user_input": self.translated_user_input,
+            "original_user_input": self.original_user_input
+        })
+        if isinstance(flow, Exception):
+            raise flow
+
+        return flow
