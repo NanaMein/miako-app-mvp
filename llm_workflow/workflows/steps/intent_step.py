@@ -244,12 +244,12 @@ async def _prompts_for_first_phase_mock(
     _orig_mock_list = await original_memory._get_user_memory()
     _orig_mock_list.messages.extend(fake_memory.taglish_original_history)
     orig_list = await original_memory.get_messages(include_metadata=True)
-    original_str = IntentClassifier.memory_parsing_to_string(orig_list)
+    original_str = _IntentClassifier.memory_parsing_to_string(orig_list)
 
     _trans_mock_list = await translated_memory._get_user_memory()
     _trans_mock_list.messages.extend(fake_memory.taglish_translated_history)
     trans_list = await translated_memory.get_messages(include_metadata=True)
-    translated_str = IntentClassifier.memory_parsing_to_string(trans_list)
+    translated_str = _IntentClassifier.memory_parsing_to_string(trans_list)
 
     user_prompt = await PROMPTS.user_data_extractor_template.render_async(
         translated_user_input=fake_memory.taglish_user_input,
