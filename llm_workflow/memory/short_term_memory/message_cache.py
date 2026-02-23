@@ -9,7 +9,7 @@ import time
 
 _MASTER_LOCK = asyncio.Lock()
 _USER_MEMORY: Dict[str, "UserMemory"] = {}
-_CLEANUP_TASK: Optional[asyncio.Task] = None
+_CLEANUP_TASK: Optional[asyncio.Task[None]] = None
 MAX_TTL_SECONDS = 3600
 CLEANUP_INTERVAL = 600
 DEFAULT_SYSTEM = "You are a helpful assistant"
@@ -41,7 +41,7 @@ class UserMemory:
     __slots__ = ["lock","messages","last_accessed"]
     def __init__(self) -> None:
         self.lock = asyncio.Lock()
-        self.messages: deque = deque(maxlen=50)
+        self.messages: deque[dict[str, Any]] = deque(maxlen=50)
         self.last_accessed: float = time.monotonic()
 
 async def _background_cleanup() -> None:
@@ -87,7 +87,7 @@ class MessageStorage:
             _id = _id.hex
         return _id
 
-    async def _get_user_memory(self) -> Union[UserMemory, None]:
+    async def _get_user_memory(self) -> UserMemory:
         user_id = self.user_id
         if user_id is None:
             raise Exception("No user_id provided")
@@ -107,7 +107,7 @@ class MessageStorage:
 
 
     @staticmethod
-    def _create_message(role: str, content: str, **kwargs) -> dict[str, Any]:
+    def _create_message(role: str, content: str, **kwargs: Any) -> dict[str, Any]:
         msg = {"role": role, "content": content, "created_at": datetime.now().isoformat()}
         if kwargs:
             for k in("role", "content", "created_at"):
@@ -115,7 +115,7 @@ class MessageStorage:
             msg.update(kwargs)
         return msg
 
-    async def add_human_message(self, content: str, **metadata):
+    async def add_human_message(self, content: str, **metadata: Any)-> Self:
         _user = await self._get_user_memory()
         async with _user.lock:
             msg = self._create_message(role="user", content=content, **metadata)
@@ -123,7 +123,7 @@ class MessageStorage:
             _user.last_accessed = time.monotonic()
         return self
 
-    async def add_ai_message(self, content: str, **metadata):
+    async def add_ai_message(self, content: str, **metadata: Any)->Self:
         _user = await self._get_user_memory()
         async with _user.lock:
             msg = self._create_message(role="assistant", content=content, **metadata)
@@ -131,7 +131,7 @@ class MessageStorage:
             _user.last_accessed = time.monotonic()
         return self
 
-    async def get_messages(self, include_metadata: bool = False) -> List[dict]:
+    async def get_messages(self, include_metadata: bool = False) -> List[dict[str,Any]]:
         _user = await self._get_user_memory()
         async with _user.lock:
             current_history = list(_user.messages)
@@ -151,7 +151,7 @@ class MessageStorage:
 
 
 
-    async def get_messages_with_system(self, system_instructions: str = DEFAULT_SYSTEM) -> List[dict]:
+    async def get_messages_with_system(self, system_instructions: str = DEFAULT_SYSTEM) -> List[dict[str,Any]]:
         _user = await self._get_user_memory()
         async with _user.lock:
 
