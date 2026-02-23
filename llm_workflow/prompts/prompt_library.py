@@ -62,7 +62,8 @@ class LibraryLoader(LoaderABC):
 
 class BasePrompt:
     def __init__(self, yaml_file_name: Union[str, None] = None):
-        self.loader = LibraryLoader(file_path=yaml_file_name)
+        self.data_source_path = f"data_sources/{yaml_file_name}"
+        self.loader = LibraryLoader(file_path=self.data_source_path)
 
     def get_prompt(self, key_path: str) -> str:
         return self.loader.get_prompt(key_path=key_path)

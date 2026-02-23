@@ -1,0 +1,17 @@
+hello-world:
+  testing hello world
+
+template:
+  for_node: >
+    <Node>
+      <text>{text}</text>
+      <source>{source}</source>
+      <turn_index>{turn_index}</turn_index>
+      <score>{score}</score>
+    </Node>
+  for_message: >
+    <conversation_turn>
+      <user_turn>{user_message}</user_turn>
+      <assistant_turn>{assistant_message}</assistant_turn>
+    </conversation_turn>
+    ---/---/---
