@@ -1,4 +1,4 @@
-from typing import Union, Dict, Optional, List, Any
+from typing import Union, Dict, Optional, List, Any, Protocol, Self
 from collections import deque
 from datetime import datetime
 import asyncio
@@ -14,6 +14,27 @@ MAX_TTL_SECONDS = 3600
 CLEANUP_INTERVAL = 600
 DEFAULT_SYSTEM = "You are a helpful assistant"
 
+class StorageBase(Protocol):
+
+    @property
+    def user_id(self) -> str | None:
+        ...
+
+    @staticmethod
+    def _create_message(role: str, content: str, **kwargs: Any) -> dict[str, Any]:
+        ...
+
+    async def add_human_message(self, content: str, **metadata: Any) -> Self:
+        ...
+
+    async def add_ai_message(self, content: str, **metadata: Any) -> Self:
+        ...
+
+    async def get_messages(self, include_metadata: bool = False) -> List[dict[str,Any]]:
+        ...
+
+    async def get_messages_with_system(self,system_instruction: str = DEFAULT_SYSTEM) -> List[dict[str,Any]]:
+        ...
 
 
 class UserMemory:
