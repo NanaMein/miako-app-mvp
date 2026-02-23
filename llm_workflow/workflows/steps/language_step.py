@@ -21,6 +21,7 @@ class _LanguageRouter(Flow[LanguageState]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self.llm = LLMGroq()
+        self.language = LANGUAGE
 
     @property
     def original_memory(self):
@@ -64,14 +65,14 @@ class _LanguageRouter(Flow[LanguageState]):
 
 
     async def _english_identifier(self, input_message):
-        system_message = LANGUAGE.get_prompt("language_classifier.current")
+        system_message = self.language.get_prompt("system-prompt.language-classifier")
         self.llm.add_system(system_message)
         self.llm.add_user(input_message)
         response = await self.llm.groq_scout(max_completion_tokens=1)
         return str(response)
 
-
-    def _english_router(self, input_message: str):
+    @staticmethod
+    def _english_router(input_message: str):
         options = {"YES", "NO", "UNKNOWN"}
         upper_response = input_message.upper().strip()
 
@@ -88,7 +89,7 @@ class _LanguageRouter(Flow[LanguageState]):
         return "error_db"
 
     async def _translate_to_english(self, input_message: str):
-        system_message = LANGUAGE.get_prompt("language_translation.current")
+        system_message = self.language.get_prompt("system-prompt.language-translator")
         self.llm.add_system(system_message)
         self.llm.add_user(input_message)
         response = await self.llm.groq_maverick(max_completion_tokens=8000)

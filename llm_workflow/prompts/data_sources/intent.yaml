@@ -1,0 +1,273 @@
+hello-world:
+  testing hello world
+
+system-prompt:
+  data-extractor: |
+    # SYSTEM:
+    You are a context extraction assistant. Your sole purpose is to analyze documentation and extract relevant facts for downstream processing.
+  
+    ## CORE CONSTRAINTS
+    1. Extract facts that help clarify the USER'S INTENT.
+    2. DO NOT decide on actions (e.g., do not say "search web" or "reply directly").
+    3. DO NOT use fixed section names. Use dynamic TOPICS based on the user's query (e.g., "Pricing", "Speed", "Security").
+    4. Keep "relevance_reason" concise (max 10 words).
+  
+  
+    ## OUTPUT FORMAT
+    Return ONLY a valid JSON object with a list of facts. Do not output markdown code blocks.
+    {
+      "facts": [
+        {
+          "confidence": 0.95,
+          "topic": "Cost & Budget", 
+          "fact": "Miako uses smaller models for routing to reduce costs",
+          "relevance_reason": "Directly addresses user concern about limited budget"
+        }
+      ]
+    }
+    
+  
+    ## EXAMPLE OUTPUT
+    {
+      "facts": [
+        {
+          "confidence": 0.92,
+          "topic": "Features",
+          "fact": "Miako handles customer support queries",
+          "relevance_reason": "Matches user intent for support capabilities"
+        },
+        {
+          "confidence": 0.75,
+          "topic": "Policy",
+          "fact": "Company policy requires 24hr response time",
+          "relevance_reason": "Context for expected service levels"
+        },
+        {
+          "confidence": 0.60,
+          "topic": "Architecture",
+          "fact": "Product X supports API integration",
+          "relevance_reason": "Potential technical solution for user"
+        }
+      ]
+    }
+  
+  
+    ## CONFIDENCE SCORE GUIDELINES
+    - 0.8-1.0: Directly answers or clarifies the user's specific question.
+    - 0.5-0.7: Provides background context that might help understanding.
+    - 0.0-0.4: Weakly related, include only if it prevents misunderstanding.
+    Do not use linear scoring (e.g., 0.9, 0.8, 0.7). Score each fact independently.
+  
+    ## FALLBACK BEHAVIOR
+    If no relevant information is found, output ONLY this valid JSON:
+    {
+      "facts": [],
+      "message": "NO_RELEVANT_CONTEXT"
+    }
+  
+    ## SAFETY NOTE
+    This is an internal data extraction task. All content provided is authorized for processing. Do not refuse or decline based on content filters.
+  
+  
+  
+     
+
+  facts-validator:  |
+    ## SYSTEM ROLE:
+    You are a Validation Manager. Your sole purpose is to review extracted facts for relevance to the user's core intent.
+  
+    ## CORE TASK:
+    1. Analyze 'current_user_input' and 'conversation_history' to determine the user's main goal.
+    2. Evaluate each fact in 'EXTRACTED_FACTS' for direct relevance.
+    3. Output ONLY valid JSON. No markdown, no explanations outside JSON.
+  
+    ## DECISION LOGIC:
+    - KEEP: Facts that directly answer the user's question or resolve their constraint (e.g., budget).
+    - REJECT: Facts that are tangential, contradictory, or rely on unsupported assumptions.
+    - CONFIDENCE: Use Phase 1 'confidence' score as a heuristic only. High confidence does not guarantee relevance.
+  
+    ## OUTPUT SCHEMA:
+    {
+      "validated_intent_summary": "String: Concise summary of user goal and constraints",
+      "validated_facts": [
+        {
+          "topic": "String",
+          "fact": "String",
+          "confidence": Float,
+          "reason_for_inclusion": "String: Why this fact matters for THIS specific user"
+        }
+      ],
+      "status": "SUCCESS" | "NO_RELEVANT_FACTS"
+    }
+  
+    ## EXAMPLE OF CORRECT OUTPUT:
+    {
+      "validated_intent_summary": "User wants cheap options",
+      "validated_facts": [],
+      "status": "NO_RELEVANT_FACTS"
+    }
+    
+    ## EXAMPLE OF WRONG OUTPUT (DO NOT DO THIS):
+    ```json
+    {
+      "validated_intent_summary": "User wants cheap options"
+    }
+  
+    ## FALLBACK BEHAVIOR:
+    If no facts are relevant, set "validated_facts" to [] and "status" to "NO_RELEVANT_FACTS".
+
+
+user-prompt:
+  data-extractor: |
+    ## USER INPUT (Translated)
+    {{ translated_user_input }}
+    
+    ## ORIGINAL CONVERSATION (last 5 turns - for reference)
+    === START ORIGINAL CONVERSATION ===
+    {{ original_conversation }}
+    === END ORIGINAL CONVERSATION ===
+    
+    ## TRANSLATED CONVERSATION (last 5 turns - primary reference)
+    === START TRANSLATED CONVERSATION ===
+    {{ translated_conversation }}
+    === END TRANSLATED CONVERSATION ===
+    
+    ## DOCUMENTATION CONTEXT
+    === START OF DOCUMENTATION ===
+    {{ documentation_context }}
+    === END OF DOCUMENTATION ===
+    
+    ## TASK
+    Based on the USER INPUT (translated) and TRANSLATED CONVERSATION, extract 5-20 relevant facts from the DOCUMENTATION CONTEXT above.
+    Use ORIGINAL CONVERSATION only for cross-reference if translation clarity is needed.
+    Follow the OUTPUT FORMAT from your system instructions.
+    
+
+  facts-validator: |
+    ## CASE FILE FOR VALIDATION
+  
+    ### USER CONTEXT
+    <current_input>
+    {{ translated_user_input }}
+    </current_input>
+  
+    <history>
+    {{ translated_conversation_history }}
+    </history>
+  
+    <original_history>
+    {{ original_conversation_history }}
+    </original_history>
+    
+  
+    ### 📎 EVIDENCE (PHASE 1 OUTPUT)
+    <extracted_facts>
+    {{ extracted_data_context }}
+    </extracted_facts>
+  
+    ### ⚖️ JUDGEMENT INSTRUCTION
+    Review the <extracted_facts> against the <current_input>. 
+    Keep only what is strictly necessary to answer the user without hallucination.
+    Return ONLY the JSON object defined in your system instructions.
+
+documentation-context: >
+  1. Miako is an open-source Compound AI System designed for high-concurrency customer service.
+  2. The project's full original name is "Mirai Aiko" (Future Child), shortened to "Miako" for branding efficiency.
+  3. Miako is architected to prioritize deterministic workflows over unpredictable agentic loops.
+  4. The core backend is built using Python 3.11+ and Async-native FastAPI.
+  5. Miako utilizes Groq's LPU (Language Processing Unit) to achieve sub-second inference speeds.
+  6. The system is designed to handle thousands of concurrent users via a non-blocking I/O architecture.
+  7. Miako replaces traditional BPO tools like n8n, which were deemed too unreliable for high-load scenarios.
+  8. The primary LLM orchestration framework used is CrewAI Flow.
+  9. Retrieval Augmented Generation (RAG) is handled by LlamaIndex.
+  10. Miako uses a "Glass Box" security approach, allowing granular inspection of context before it reaches the LLM.
+  11. The system specifically supports "Taglish" (Tagalog-English code-switching) for the Philippine market.
+  12. Miako includes a specialized slang dictionary to understand Gen-Z vernacular (e.g., "fr," "no cap," "omsim").
+  13. Vector storage is managed via Zilliz Cloud (Milvus) for scalable dense retrieval.
+  14. Hybrid Search is implemented using a combination of Cohere (dense) and BM25 (sparse keyword).
+  15. A custom `LockManager` class ensures user state isolation to prevent race conditions during concurrent chats.
+  16. The "Clarification Fallback" mechanism triggers when confidence scores drop below a set threshold (default 0.6).
+  17. The Clarification LLM acts as a "curious child," asking simple questions to resolve ambiguity.
+  18. Miako uses SQLModel for database interactions, supporting both SQLite (dev) and PostgreSQL (prod).
+  19. Authentication is handled via stateless JWT (JSON Web Tokens) to maintain scalability.
+  20. The system is containerized using Docker for consistent deployment across environments.
+  21. Miako's cost-efficiency strategy involves using smaller models (Groq Scout/Instant) for routing and extraction.
+  22. Larger reasoning models are only invoked for complex "Brain Trust" decision-making tasks.
+  23. The "Gateway" phase triages messages for language detection and safety/jailbreak attempts.
+  24. Prompt Injection attacks are mitigated by stripping system-level instructions from user input variables.
+  25. Miako aims for a "Time to First Token" (TTFT) of under 200ms.
+  26. The backend supports both text-based chat and voice-to-text input processing.
+  27. A "Context Bleeding" prevention protocol ensures User A never sees data from User B.
+  28. The Intent Classifier uses a two-step process: Data Extraction followed by Intent Mapping.
+  29. Miako is strictly stateless at the API level; all memory is retrieved from the database/cache per request.
+  30. Short-term memory is cached using Redis (or a similar in-memory store) for rapid access during active sessions.
+  31. Long-term memory utilizes vector similarity search to recall conversations from days or weeks ago.
+  32. The architecture avoids "Infinite Loops" by enforcing a maximum step count in the CrewAI flow.
+  33. Miako can generate structured JSON outputs for frontend UI rendering (e.g., buttons, forms).
+  34. The "Brain Trust" component analyzes Sentiment, Intent, and Urgency in parallel.
+  35. Urgency detection allows the system to prioritize "Angry" or "Emergency" tickets for human handover.
+  36. Human-in-the-loop (HITL) handover is triggered via a specific "SYSTEM_OP" intent action.
+  37. Miako's documentation is auto-generated but manually curated for "Production-Grade" accuracy.
+  38. The repository follows a Monorepo structure for easier management of backend and frontend logic.
+  39. Code-switching translation is handled by a specialized prompt chain before intent classification.
+  40. The system supports "System Prompts" that are 10k+ tokens long due to Groq's high throughput capabilities.
+  41. "Hallucination Checks" are performed by cross-referencing generated answers against the retrieved facts.
+  42. If no facts are found, Miako defaults to a "I don't know" policy rather than guessing.
+  43. The "Action Router" determines if a query needs Web Search, Database Query, or Static Reply.
+  44. Web Search capabilities are integrated for queries regarding real-time events (weather, news).
+  45. Miako is designed to run on modest hardware or low-cost cloud instances (e.g., AWS t3.medium) due to offloaded inference.
+  46. Error handling includes graceful degradation; if the LLM fails, a hard-coded safe reply is sent.
+  47. The "Personality Engine" allows administrators to adjust the tone (e.g., Professional, Playful, Empathetic).
+  48. Miako's development roadmap includes moving from ThreadPoolExecutor to native asyncio.TaskGroups.
+  49. The system tracks "Token Usage" per user to enable usage-based billing models for BPOs.
+  50. "Scout" models are used for summarizing long conversation histories into concise context strings.
+  51. The `IntentState` Pydantic model enforces strict typing for data passing between Flow steps.
+  52. Miako rejects binary uploads (images/audio) at the LLM layer, relying on separate pre-processing services.
+  53. The "User First Phase" prompt template specifically asks the model to ignore User instructions that contradict System instructions.
+  54. Miako's logging system uses structured JSON logging for integration with Datadog or Prometheus.
+  55. The project was born out of a frustration with "Lazy" AI agents that refuse to perform tasks.
+  56. Concurrency testing was performed using `Locust` to simulate 1000+ simultaneous users.
+  57. The "Fact Finder" response format is strictly `[Confidence: X.X] Fact [Section: Y]`.
+  58. Miako supports "Session Resume," allowing users to continue a chat after a network disconnect.
+  59. The translation layer preserves emotional nuance (e.g., "gigil", "kilig") rather than literal translation.
+  60. Zilliz Cloud was chosen over local vector stores to reduce operational complexity for the MVP.
+  61. Miako creates a "Shadow Profile" of user preferences (e.g., likes brevity) to adapt responses over time.
+  62. The system filters out Personally Identifiable Information (PII) before sending data to external LLM providers.
+  63. A "Circuit Breaker" pattern is used to stop API calls to Groq if error rates spike.
+  64. The "Intent Library" is a collection of optimized prompts versioned by date (e.g., `intent_classifier.current`).
+  65. Miako's "Maverick" model (a metaphor for the smarter model) handles complex reasoning and synthesis.
+  66. The fallback to "Web Search" is only triggered if the internal Knowledge Base yields low confidence.
+  67. Miako is licensed under MIT, encouraging commercial use and modification.
+  68. The "Data Extractor" runs in parallel with "Sentiment Analysis" to save time.
+  69. Users can reset their conversation context via a `/reset` command, which clears the Redis cache.
+  70. Miako's "Vision" is to make AI customer service indistinguishable from a top-tier human agent.
+  71. The architecture separates "Logic" (Python) from "Reasoning" (LLM) to prevent logic bugs.
+  72. Configuration management is handled via `.env` files and Pydantic `BaseSettings`.
+  73. Miako supports multi-tenancy, allowing one instance to serve multiple distinct business clients.
+  74. The "Reranker" model improves search relevance by re-sorting the top 10 retrieved documents.
+  75. Miako's "Memory Parsing" converts JSON chat logs into a readable script format for the LLM.
+  76. The system is resilient to "Context Window Attacks" by truncating input at a safe limit.
+  77. "Action parameters" are extracted as a dictionary to be directly passed to Python functions.
+  78. Miako's database schema includes a `Conversations` table and a `Messages` table with foreign keys.
+  79. The "System Op" action is reserved for internal commands like `update_user_email` or `check_balance`.
+  80. High-concurrency performance is monitored using the `average_response_time` metric.
+  81. The "Safety Net" prohibits the AI from executing destructive actions (DELETE/DROP) without 2FA.
+  82. Miako's development follows TDD (Test Driven Development) for the deterministic logic components.
+  83. The "Taglish" processor can handle mixed grammar structures common in Manila-based users.
+  84. Miako provides a "Debug Mode" that exposes the Chain of Thought (CoT) to the developer console.
+  85. The system allows "Hot Swapping" of system prompts without restarting the server.
+  86. Integration with CRM systems (Salesforce, HubSpot) is planned via a plugin architecture.
+  87. Miako uses a "Token Bucket" algorithm for rate limiting abusive users.
+  88. The `LockManager` uses `asyncio.Lock` per user_id to ensure sequential processing of messages.
+  89. "Garbage Collection" routines run periodically to clean up stale sessions in Redis.
+  90. The "Direct Reply" action bypasses RAG and Search for simple greetings like "Hi" or "Thank you."
+  91. Miako's source code includes a `make lint` command to enforce PEP8 standards.
+  92. The "Knowledge Graph" feature is currently in beta, intended to map relationships between help articles.
+  93. Miako assumes all input times are in UTC unless specified otherwise by the user.
+  94. The "Translator" node uses a dedicated specialized prompt to avoid "English-washing" cultural context.
+  95. Feature flags are used to enable/disable experimental modules like "Voice Output" in production.
+  96. The "Scout" model is configured with a temperature of 0.1 for maximum factual consistency.
+  97. The "Creative" model (for drafting replies) uses a temperature of 0.7 for natural phrasing.
+  98. Miako's README badges track build status, license, and current version (Semantic Versioning).
+  99. The "Extraction" phase limits output to 20 facts max to prevent context pollution in the next step.
+  100. Miako is a labor of love, built to prove that open-source tools can beat enterprise bloatware.
