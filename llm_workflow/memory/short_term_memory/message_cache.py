@@ -12,7 +12,7 @@ MAX_TTL_SECONDS = 3600
 CLEANUP_INTERVAL = 600
 DEFAULT_SYSTEM = "You are a helpful assistant"
 
-class StorageBase(Protocol):
+class StorageProtocol(Protocol):
 
     @property
     def user_id(self) -> str | None:
@@ -347,17 +347,5 @@ class MessageStorageV1:
                 else:
                     results.append({"metadata":filtered_meta})
             return results
-
-
-            clean_list = []
-            for msg in _user.messages:
-                only_meta = { "metadata": msg["metadata"] }
-                clean_list.append(only_meta)
-
-            for key, value in only_meta.items():
-                if key in include_only:
-                    clean_list[key] = value
-
-            return clean_list
 
 
