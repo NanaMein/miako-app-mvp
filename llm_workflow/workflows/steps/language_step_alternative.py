@@ -1,39 +1,23 @@
 from typing import Any
-from crewai.flow.flow import Flow, start, listen, router, or_
-from pydantic import BaseModel, ConfigDict
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.prompts.prompt_library import LanguageLibrary
-from llm_workflow.llm.groq_llm import ChatCompletionsClass as LLMGroq
+from llm_workflow.llm.groq_llm import MODEL, GroqLLM
+from dataclasses import dataclass
+from fastapi import HTTPException, status
 
 
 
 LANGUAGE = LanguageLibrary()
 
-
-class LanguageState(BaseModel):
-    user_id: str = ""
-    original_message: str = ""
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+@dataclass(slots=True)
+class ValueStates:
+    user_id: str
+    original_message: str
+    translated_message: str = ""
 
 class LanguageFlow:
     def __init__(self, user_id: str, original_message: str):
-        self.original_message = original_message
-        self.user_id = user_id
-        self.flow = _LanguageRouter()
-
-    async def run(self):
-        return await self.flow.kickoff_async(
-            {
-                "user_id": self.user_id,
-                "original_message": self.original_message,
-            }
-        )
-
-
-class _LanguageRouter(Flow[LanguageState]):
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-        self.llm = LLMGroq()
+        self.state = ValueStates(user_id=user_id, original_message=original_message)
         self.language = LANGUAGE
 
     @property
@@ -46,79 +30,72 @@ class _LanguageRouter(Flow[LanguageState]):
         _user_id = f"translated_x_{self.state.user_id}"
         return MessageStorage(user_id=_user_id)
 
-    @start()
-    async def english_identifier(self) -> str:
-        print("Running: english_identifier")
-        return await self._english_identifier(self.state.original_message)
-
-
-    @router(english_identifier)
-    def english_router(self, identified_language):
-        print("Running: english_router")
-        return self._english_router(identified_language)
-
-    @listen("ENGLISH_PASSED")
-    def english_router_passed(self):
-        print("Running: english_router_passed")
-        return self.state.original_message
-
-    @listen("ENGLISH_FAILED")
-    async def english_router_failed(self):
-        print("Running: english_router_failed")
-        return await self._translate_to_english(self.state.original_message)
-
-    @listen(or_(english_router_passed, english_router_failed))
-    async def memory_update(self, message):
-        print("Running: memory_update")
-        await self.original_memory.add_human_message(self.state.original_message)
-        await self.translated_memory.add_human_message(message)
-        return message
-
-
-
-
-    async def _english_identifier(self, input_message):
-        system_message = self.language.get_prompt("system-prompt.language-classifier")
-        self.llm.add_system(system_message)
-        self.llm.add_user(input_message)
-        response = await self.llm.groq_scout(max_completion_tokens=1)
-        return str(response)
 
     @staticmethod
-    def _english_router(input_message: str):
-        options = {"YES", "NO", "UNKNOWN"}
-        upper_response = input_message.upper().strip()
+    async def groq_chat(system: str, model: str, input_message: str, max_completion_tokens: int, **kwargs) -> str:
+        llm = GroqLLM()
+        llm.add_system(content=system)
+        llm.add_user(content=input_message)
+        return await llm.groq_chat(model=model, max_completion_tokens=max_completion_tokens, **kwargs)
 
-        if upper_response in options:
-            if upper_response == "YES":
-                return "ENGLISH_PASSED"
-            elif upper_response == "NO":
-                return "ENGLISH_FAILED"
-            elif upper_response == "UNKNOWN":
-                return "error_db"
-            else:
-                return "error_db"
+    async def _english_identifier(self):
+        system_message = self.language.get_prompt("system-prompt.language-classifier")
+        response = await self.groq_chat(
+            system=system_message,
+            input_message=self.state.original_message,
+            model=MODEL.scout,
+            max_completion_tokens=1
+        )
+        return response
 
-        return "error_db"
-
-    async def _translate_to_english(self, input_message: str):
+    async def _translate_to_english(self):
         system_message = self.language.get_prompt("system-prompt.language-translator")
-        self.llm.add_system(system_message)
-        self.llm.add_user(input_message)
-        response = await self.llm.groq_maverick(max_completion_tokens=8000)
-        print(response)
-        return str(response)
+        response = await self.groq_chat(
+            system=system_message,
+            input_message=self.state.original_message,
+            model=MODEL.gpt_oss_120,
+            max_completion_tokens=40_000
+        )
+        self.state.translated_message = response
+        return self
+
+    async def _memory_update(self):
+        await self.original_memory.add_human_message(self.state.original_message)
+        await self.translated_memory.add_human_message(self.state.translated_message)
+        return True
 
 
-    @listen("error_db")
-    def error_db(self):
-        print("error_db")
-        return None
+    async def _internal_workflow(self) -> str:
+        original = self.state.original_message
 
-    @listen(memory_update)
-    def final_answer(self, message):
-        print("Running: final_answer")
-        return message
+        error = HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal Error")
+
+        _lang_identity = await self._english_identifier()
+
+        upper_response = _lang_identity.upper().strip()
+
+        if upper_response in ["YES", "NO"]:
+            if upper_response == "NO":
+                await self._translate_to_english()
+            else:
+                self.state.translated_message = original
+
+        else:
+            raise error
+
+        memory_updated = await self._memory_update()
+
+        if memory_updated:
+            return self.state.translated_message
+        else:
+            raise error
+
+
+    async def run(self)-> str | Any:
+        try:
+            return await self._internal_workflow()
+        except Exception as e:
+            raise e
 
 
 
