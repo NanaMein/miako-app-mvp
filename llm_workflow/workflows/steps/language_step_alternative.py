@@ -44,6 +44,7 @@ class LanguageFlowPureClass:
             system=system_message,
             input_message=self.state.original_message,
             model=MODEL.scout,
+            temperature=.1,
             max_completion_tokens=1
         )
         return response
@@ -53,8 +54,10 @@ class LanguageFlowPureClass:
         response = await self.groq_chat(
             system=system_message,
             input_message=self.state.original_message,
-            model=MODEL.gpt_oss_120,
-            max_completion_tokens=40_000
+            model=MODEL.gpt_oss_20,
+            max_completion_tokens=8000,
+            reasoning_effort="medium",
+            tools=[{"type": "browser_search"}]
         )
         self.state.translated_message = response
         return self
