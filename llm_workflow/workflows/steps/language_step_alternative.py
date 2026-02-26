@@ -15,7 +15,7 @@ class ValueStates:
     original_message: str
     translated_message: str = ""
 
-class LanguageFlow:
+class LanguageFlowPureClass:
     def __init__(self, user_id: str, original_message: str):
         self.state = ValueStates(user_id=user_id, original_message=original_message)
         self.language = LANGUAGE
