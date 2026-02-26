@@ -3,7 +3,8 @@ from crewai.flow.flow import Flow, start, listen, router, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 from llm_workflow.prompts.prompt_library import LanguageLibrary
-from llm_workflow.llm.groq_llm import ChatCompletionsClass as LLMGroq
+from llm_workflow.llm.groq_llm import GroqLLM, MODEL
+
 
 
 
@@ -20,7 +21,8 @@ class LanguageState(BaseModel):
 class _LanguageRouter(Flow[LanguageState]):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
-        self.llm = LLMGroq()
+        self.chat_identifier = GroqLLM()
+        self.chat_translator = GroqLLM()
         self.language = LANGUAGE
 
     @property
@@ -66,10 +68,12 @@ class _LanguageRouter(Flow[LanguageState]):
 
     async def _english_identifier(self, input_message):
         system_message = self.language.get_prompt("system-prompt.language-classifier")
-        self.llm.add_system(system_message)
-        self.llm.add_user(input_message)
-        response = await self.llm.groq_scout(max_completion_tokens=1)
-        return str(response)
+        self.chat_identifier.add_system(system_message)
+        self.chat_identifier.add_user(input_message)
+        response = await self.chat_identifier.groq_chat(
+            model=MODEL.scout, temperature=.1, max_completion_tokens=1
+        )
+        return response
 
     @staticmethod
     def _english_router(input_message: str):
@@ -90,11 +94,15 @@ class _LanguageRouter(Flow[LanguageState]):
 
     async def _translate_to_english(self, input_message: str):
         system_message = self.language.get_prompt("system-prompt.language-translator")
-        self.llm.add_system(system_message)
-        self.llm.add_user(input_message)
-        response = await self.llm.groq_maverick(max_completion_tokens=8000)
-        print(response)
-        return str(response)
+        self.chat_translator.add_system(system_message)
+        self.chat_translator.add_user(input_message)
+        response = await self.chat_translator.groq_chat(
+            model=MODEL.gpt_oss_20,
+            max_completion_tokens=8000,
+            reasoning_effort="medium",
+            tools=[{"type": "browser_search"}]
+        )
+        return response
 
 
     @listen("error_db")
