@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 from crewai.flow.flow import Flow, start, listen, router, or_
 from pydantic import BaseModel, ConfigDict
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorageV1
@@ -62,10 +62,18 @@ class _LanguageRouter(Flow[LanguageState]):
         return await self._english_identifier(self.state.original_message)
 
 
-    @router(english_identifier)
-    def english_router(self, identified_language):
+
+    @router(language_identifier)
+    def language_router(self, is_valid_language) -> Literal["ENGLISH_PASSED", "ENGLISH_FAILED", "error_db"]:
         print("Running: english_router")
-        return self._english_router(identified_language)
+        if is_valid_language:
+            if self.state.source_language == "en":
+                return "ENGLISH_PASSED"
+            else:
+                return "ENGLISH_FAILED"
+
+        return "error_db"
+
 
     @listen("ENGLISH_PASSED")
     def english_router_passed(self):
@@ -112,22 +120,8 @@ class _LanguageRouter(Flow[LanguageState]):
         )
         return response
 
+
     @staticmethod
-    def _english_router(input_message: str):
-        options = {"YES", "NO", "UNKNOWN"}
-        upper_response = input_message.upper().strip()
-
-        if upper_response in options:
-            if upper_response == "YES":
-                return "ENGLISH_PASSED"
-            elif upper_response == "NO":
-                return "ENGLISH_FAILED"
-            elif upper_response == "UNKNOWN":
-                return "error_db"
-            else:
-                return "error_db"
-
-        return "error_db"
 
     async def _translate_to_english(self, input_message: str):
         system_message = self.language.get_prompt("system-prompt.language-translator")
