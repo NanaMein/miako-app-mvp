@@ -10,7 +10,7 @@ from llm_workflow.prompts.prompt_library import PromptLibrary
 from fastapi import status, HTTPException
 from typing import Literal
 from dataclasses import dataclass, asdict
-from llm_workflow.workflows.steps.language_step import LanguageFlow
+from llm_workflow.workflows.steps.language_step import LanguageFlow, LanguageFlowPureClass
 from llm_workflow.workflows.steps.intent_step import IntentFlow
 
 
@@ -66,7 +66,7 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
 
     @listen(safety_content_moderator)
     async def language_layer(self):
-        language_flow = LanguageFlow(
+        language_flow = LanguageFlowPureClass(
             user_id=self.state.input_user_id,
             original_message=self.state.input_message
         )
