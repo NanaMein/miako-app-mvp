@@ -57,10 +57,16 @@ class _LanguageRouter(Flow[LanguageState]):
 
 
     @start()
-    async def english_identifier(self) -> str:
+    async def language_identifier(self):
         print("Running: english_identifier")
-        return await self._english_identifier(self.state.original_message)
+        chat_response = await self._language_classifier_chat(self.state.original_message)
 
+        is_valid_language = self._language_type_validation(chat_response)
+
+        if is_valid_language:
+            self.state.source_language = chat_response.lower()
+            return True
+        return False
 
 
     @router(language_identifier)
@@ -85,6 +91,11 @@ class _LanguageRouter(Flow[LanguageState]):
         print("Running: english_router_failed")
         return await self._translate_to_english(self.state.original_message)
 
+    @listen("error_db")
+    def error_function(self):
+        print("Running: error_db")
+        return False
+
     @listen(or_(english_router_passed, english_router_failed))
     async def memory_update(self, processed_message: str):
 
@@ -104,16 +115,24 @@ class _LanguageRouter(Flow[LanguageState]):
         print("Running: success_function")
         return True
 
+    @listen(or_(success_function, error_function))
+    async def final_answer(self, is_success):
+        if is_success:
+            result_with_metadata = await self.memory.get_messages(include_metadata=True)
+            result = json.dumps(result_with_metadata, ensure_ascii=False)
+            return result
+            # return self.state.final_answer
+        raise Exception("Internal error")
 
-    async def _english_identifier(self, input_message):
-        system_message = self.language.get_prompt("system-prompt.language-classifier")
-        self.chat_identifier.add_system(system_message)
 
     @property
     def memory(self):
         if self._message_memory is None:
             self._message_memory = MessageStorageV1(self.state.user_id)
         return self._message_memory
+
+    async def _language_classifier_chat(self, input_message: str):
+        self.chat_identifier.add_system(LANGUAGE.classifier)
         self.chat_identifier.add_user(input_message)
         response = await self.chat_identifier.groq_chat(
             model=MODEL.scout, temperature=.1, max_completion_tokens=1
@@ -122,11 +141,20 @@ class _LanguageRouter(Flow[LanguageState]):
 
 
     @staticmethod
+    def _language_type_validation(original_input_text: str):
+        if not re.fullmatch(r"[a-z]{2}", original_input_text, re.IGNORECASE):
+            return False
+        return True
 
     async def _translate_to_english(self, input_message: str):
-        system_message = self.language.get_prompt("system-prompt.language-translator")
-        self.chat_translator.add_system(system_message)
-        self.chat_translator.add_user(input_message)
+        conversation_history = await self.memory.get_messages(include_metadata=True)
+        user_prompt = await LANGUAGE.user_prompt_translator(
+            current_input=input_message,
+            conversation_history=conversation_history
+        )
+        system_prompt = LANGUAGE.translator
+        self.chat_translator.add_system(system_prompt)
+        self.chat_translator.add_user(user_prompt)
         response = await self.chat_translator.groq_chat(
             model=MODEL.gpt_oss_20,
             max_completion_tokens=8000,
@@ -136,16 +164,6 @@ class _LanguageRouter(Flow[LanguageState]):
         return response
 
 
-    @listen("error_db")
-    def error_db(self):
-        print("error_db")
-        return None
-
-    @listen(memory_update)
-    def final_answer(self, message):
-        print("Running: final_answer")
-        return message
-
 
 class LanguageFlow:
     def __init__(self, user_id: str, original_message: str):
@@ -154,6 +172,7 @@ class LanguageFlow:
         self.flow = _LanguageRouter()
 
     async def run(self):
+        #self.flow.plot()
         return await self.flow.kickoff_async(
             {
                 "user_id": self.user_id,
