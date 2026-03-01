@@ -6,11 +6,37 @@ from llm_workflow.prompts.prompt_library import LanguageLibrary
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from fastapi import status, HTTPException
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from jinja2 import Template
+import asyncio
+import json
+import re
 
 
 
 
-LANGUAGE = LanguageLibrary()
+
+class Language:
+    _lang_lib = LanguageLibrary()
+    classifier = _lang_lib.get_prompt("system-prompt.language-classifier")
+    translator = _lang_lib.get_prompt("system-prompt.language-translator")
+    _user_prompt_translator_from_lib = _lang_lib.get_prompt("user-prompt.language-translator")
+    _user_prompt_template = Template(_user_prompt_translator_from_lib, enable_async=True)
+
+    async def user_prompt_translator(self, current_input: str, conversation_history: list[dict[str, Any]] | str) -> str:
+        if isinstance(conversation_history, str):
+            _conversation_history = conversation_history
+        else:
+            _conversation_history = json.dumps(conversation_history, ensure_ascii=False)
+
+        user_prompt = await self._user_prompt_template.render_async(
+            current_input=current_input,
+            conversation_history=_conversation_history
+        )
+        return user_prompt
+
+
+LANGUAGE = Language()
 
 
 class LanguageState(BaseModel):
@@ -25,7 +51,6 @@ class _LanguageRouter(Flow[LanguageState]):
         super().__init__(**kwargs)
         self.chat_identifier = GroqLLM()
         self.chat_translator = GroqLLM()
-        self.language = LANGUAGE
 
     @property
     def original_memory(self):
