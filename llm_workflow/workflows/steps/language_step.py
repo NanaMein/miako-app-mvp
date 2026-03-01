@@ -1,7 +1,7 @@
 from typing import Any
 from crewai.flow.flow import Flow, start, listen, router, or_
 from pydantic import BaseModel, ConfigDict
-from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
+from llm_workflow.memory.short_term_memory.message_cache import MessageStorageV1
 from llm_workflow.prompts.prompt_library import LanguageLibrary
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from fastapi import status, HTTPException
@@ -42,25 +42,19 @@ LANGUAGE = Language()
 class LanguageState(BaseModel):
     user_id: str = ""
     original_message: str = ""
+    source_language: str = ""
+    final_answer: str = ""
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 
 class _LanguageRouter(Flow[LanguageState]):
     def __init__(self, **kwargs: Any):
+        self._message_memory: MessageStorageV1 | None = None
         super().__init__(**kwargs)
         self.chat_identifier = GroqLLM()
         self.chat_translator = GroqLLM()
 
-    @property
-    def original_memory(self):
-        _user_id = f"original_x_{self.state.user_id}"
-        return MessageStorage(user_id=_user_id)
-
-    @property
-    def translated_memory(self):
-        _user_id = f"translated_x_{self.state.user_id}"
-        return MessageStorage(user_id=_user_id)
 
     @start()
     async def english_identifier(self) -> str:
@@ -84,18 +78,34 @@ class _LanguageRouter(Flow[LanguageState]):
         return await self._translate_to_english(self.state.original_message)
 
     @listen(or_(english_router_passed, english_router_failed))
-    async def memory_update(self, message):
-        print("Running: memory_update")
-        await self.original_memory.add_human_message(self.state.original_message)
-        await self.translated_memory.add_human_message(message)
-        return message
+    async def memory_update(self, processed_message: str):
+
+        await self.memory.add_human_message(
+            content=processed_message,
+            metadata={
+                "original_text": self.state.original_message,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "source_language": self.state.source_language,
+            }
+        )
+        self.state.final_answer = processed_message
 
 
+    @listen(memory_update)
+    def success_function(self):
+        print("Running: success_function")
+        return True
 
 
     async def _english_identifier(self, input_message):
         system_message = self.language.get_prompt("system-prompt.language-classifier")
         self.chat_identifier.add_system(system_message)
+
+    @property
+    def memory(self):
+        if self._message_memory is None:
+            self._message_memory = MessageStorageV1(self.state.user_id)
+        return self._message_memory
         self.chat_identifier.add_user(input_message)
         response = await self.chat_identifier.groq_chat(
             model=MODEL.scout, temperature=.1, max_completion_tokens=1
@@ -157,6 +167,8 @@ class LanguageFlow:
             }
         )
 
+
+from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
 @dataclass(slots=True)
 class ValueStates:
     user_id: str
