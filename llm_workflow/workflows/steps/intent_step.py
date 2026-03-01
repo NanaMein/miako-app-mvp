@@ -272,7 +272,7 @@ async def _prompts_for_first_phase_mock(
 # print(kick_resp)
 
 
-class IntentFlow:
+class IntentFlowTemporary:
     def __init__(
         self,
         user_id: Union[str, Any],
