@@ -11,7 +11,7 @@ from fastapi import status, HTTPException
 from typing import Literal
 from dataclasses import dataclass, asdict
 from llm_workflow.workflows.steps.language_step import LanguageFlow, LanguageFlowPureClass
-from llm_workflow.workflows.steps.intent_step import IntentFlow
+from llm_workflow.workflows.steps.intent_step import IntentFlow, IntentFlowTemporary
 
 
 class AppResources:
@@ -74,7 +74,7 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
 
     @listen(language_layer)
     async def intent_classifier(self, translation_response):
-        intent_flow = IntentFlow(
+        intent_flow = IntentFlowTemporary(
             user_id=self.state.input_user_id,
             original_user_input=self.state.input_message,
             translated_user_input=translation_response
