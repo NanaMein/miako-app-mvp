@@ -43,7 +43,8 @@ class LanguageState(BaseModel):
     user_id: str = ""
     original_message: str = ""
     source_language: str = ""
-    final_answer: str = ""
+    dict_answer: dict[str, Any] = {}
+    most_recent_error: Exception | None = None
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -57,7 +58,7 @@ class _LanguageRouter(Flow[LanguageState]):
 
 
     @start()
-    async def language_identifier(self):
+    async def language_identifier(self) -> bool:
         print("Running: english_identifier")
         chat_response = await self._language_classifier_chat(self.state.original_message)
 
@@ -87,41 +88,42 @@ class _LanguageRouter(Flow[LanguageState]):
         return self.state.original_message
 
     @listen("ENGLISH_FAILED")
-    async def english_router_failed(self):
+    async def english_router_failed(self) -> str:
         print("Running: english_router_failed")
         return await self._translate_to_english(self.state.original_message)
 
     @listen("error_db")
-    def error_function(self):
+    def error_function(self) -> bool:
         print("Running: error_db")
         return False
 
     @listen(or_(english_router_passed, english_router_failed))
-    async def memory_update(self, processed_message: str):
-
+    async def memory_update(self, processed_message: str) -> tuple[str, dict[str, Any]]:
+        metadata = {
+            "original_text": self.state.original_message,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "source_language": self.state.source_language,
+        }
         await self.memory.add_human_message(
             content=processed_message,
-            metadata={
-                "original_text": self.state.original_message,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "source_language": self.state.source_language,
-            }
+            metadata=metadata
         )
-        self.state.final_answer = processed_message
+        return processed_message, metadata
 
 
     @listen(memory_update)
-    def success_function(self):
+    def preparing_final_function(self, data: tuple[str, dict[str, Any]]):
         print("Running: success_function")
+        message, metadata = data
+        translated_text = {"translated_text": message}
+        full_text_dict = {**translated_text, **metadata}
+        self.state.dict_answer = full_text_dict
         return True
 
-    @listen(or_(success_function, error_function))
-    async def final_answer(self, is_success):
+    @listen(or_(preparing_final_function, error_function))
+    def final_answer(self, is_success) -> dict[str, Any]:
         if is_success:
-            result_with_metadata = await self.memory.get_messages(include_metadata=True)
-            result = json.dumps(result_with_metadata, ensure_ascii=False)
-            return result
-            # return self.state.final_answer
+            return self.state.dict_answer
         raise Exception("Internal error")
 
 
@@ -146,7 +148,7 @@ class _LanguageRouter(Flow[LanguageState]):
             return False
         return True
 
-    async def _translate_to_english(self, input_message: str):
+    async def _translate_to_english(self, input_message: str) -> str:
         conversation_history = await self.memory.get_messages(include_metadata=True)
         user_prompt = await LANGUAGE.user_prompt_translator(
             current_input=input_message,
@@ -171,7 +173,7 @@ class LanguageFlow:
         self.user_id = user_id
         self.flow = _LanguageRouter()
 
-    async def run(self):
+    async def run(self) -> dict[str, Any]:
         #self.flow.plot()
         return await self.flow.kickoff_async(
             {
