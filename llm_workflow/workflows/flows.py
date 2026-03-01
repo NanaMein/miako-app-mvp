@@ -4,7 +4,7 @@ from crewai.types.streaming import FlowStreamingOutput
 from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
+from llm_workflow.memory.short_term_memory.message_cache import MessageStorage, MessageStorageV1
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from llm_workflow.prompts.prompt_library import PromptLibrary
 from fastapi import status, HTTPException
@@ -130,6 +130,44 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
             self._translated_memory = MessageStorage(user_id=_user_id)
         return self._translated_memory
 
+
+class _AdaptiveChatbotEngineV1ForRefactor(Flow[EngineStates]):
+    def __init__(self, **kwargs: Any):
+        self._original_memory: MessageStorage | None = None
+        self._translated_memory: MessageStorage | None = None
+        self._memory: MessageStorageV1 | None = None
+        super().__init__(**kwargs)
+        self.chatbot = GroqLLM()
+
+
+
+    @start()
+    async def safety_content_moderator(self):
+        pass #For development only, assume there is a content moderator here.
+
+
+    @listen(safety_content_moderator)
+    async def language_layer(self) -> dict[str, Any]:
+        language_flow = LanguageFlow(
+            user_id=self.state.input_user_id,
+            original_message=self.state.input_message
+        )
+        return await language_flow.run()
+
+    @listen(language_layer)
+    async def intent_classifier(self, translation_response: dict[str, Any]):
+        intent_flow = IntentFlow(
+            user_id=self.state.input_user_id,
+            original_user_input=self.state.input_message,
+            translated_user_input=translation_response
+        )
+        return await intent_flow.run()
+
+    @property
+    def memory(self) -> MessageStorageV1:
+        if self._memory is None:
+            self._memory = MessageStorageV1(user_id=self.state.input_user_id)
+        return self._memory
 
 class AdaptiveChatbot:
     def __init__(self, user_id: Union[str, Any], input_message: str):
