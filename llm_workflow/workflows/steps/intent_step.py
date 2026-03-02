@@ -3,10 +3,11 @@ from crewai.flow.flow import Flow, start, listen, router
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from llm_workflow.prompts.prompt_library import IntentLibrary
-from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
+from llm_workflow.memory.short_term_memory.message_cache import MessageStorage, MessageStorageV1
 from llm_workflow.memory.short_term_memory._fake_memory_testing import fake_memory
 from groq.types.chat import ChatCompletionMessage
 from jinja2 import Template
+from dataclasses import dataclass
 import asyncio
 import json
 
@@ -294,3 +295,329 @@ class IntentFlowTemporary:
             raise flow
 
         return flow
+
+@dataclass(slots=True)
+class LanguageObject:
+    translated_text: str
+    original_text: str
+    created_at: str
+    source_language: str
+
+
+
+class TemporaryPrompts:
+    def __init__(self):
+        self._doc_context = None
+        self._user_data_extractor_template = None
+        self._intent = None
+        self._system_data_extractor_prompt = None
+
+    @property
+    def intent(self):
+        if self._intent is None:
+            self._intent = IntentLibrary()
+        return self._intent
+
+        @property
+    def documentation_context(self):
+        if self._doc_context is None:
+            self._doc_context  = self.intent.get_prompt("documentation-context")
+        return self._doc_context
+
+    @property
+    def _get_user_data_extractor_template(self) -> Template:
+        if self._user_data_extractor_template is None:
+            _prompt = self.intent.get_prompt("v1.data-extractor.user-prompt")
+            _template = Template(_prompt, enable_async=True)
+            self._user_data_extractor_template = _template
+        return self._user_data_extractor_template
+
+    @property
+    def system_data_extractor(self) -> str:
+        if self._system_data_extractor_prompt is None:
+            self._system_data_extractor_prompt = self.intent.get_prompt("v1.data-extractor.system-prompt")
+        return self._system_data_extractor_prompt
+
+    async def user_data_extractor(self, input_obj_data: dict[str, Any], history: MessageStorageV1) -> str:
+        conversation_history = await history.get_messages(include_metadata=True)
+        lang_obj = LanguageObject(**input_obj_data)
+        template = self._get_user_data_extractor_template
+        user_prompt = await template.render_async(
+            translated_text=lang_obj.translated_text,
+            original_text=lang_obj.original_text,
+            created_at=lang_obj.created_at,
+            source_language=lang_obj.source_language,
+            documentation_context=self.documentation_context,
+            conversation_history=conversation_history
+        )
+        return user_prompt
+
+_PROMPTS = TemporaryPrompts()
+
+
+
+class StatesFlowTest(BaseModel):
+    user_id: str | uuid.UUID | Any = ""
+    data_input: dict[str, Any] = Field(default_factory=dict)
+    data_extraction_handler: str = ""
+    error_exception: Exception | str | None = None
+    final_output_handler: str =""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+
+class _InternalIntentClassifier(Flow[StatesFlowTest]):
+    def __init__(self, **kwargs):
+        self._message_storage_v1: MessageStorageV1 | None = None
+        super().__init__(**kwargs)
+
+    @property
+    def memory(self):
+        if self._message_storage_v1 is None:
+            self._message_storage_v1 = MessageStorageV1(self.state.user_id)
+        return self._message_storage_v1
+
+    @property
+    def groq_llm(self):
+        return GroqLLM()
+
+    @start()
+    async def start_or_testing_phase(self):
+        pass
+
+    @listen(start_or_testing_phase)
+    async def prep_prompts(self) -> tuple[str, str]:
+        system_prompt = _PROMPTS.system_data_extractor
+        user_prompt = await _PROMPTS.user_data_extractor(
+            input_obj_data=self.state.data_input,
+            history=self.memory
+        )
+        return system_prompt, user_prompt
+
+    @listen(prep_prompts)
+    async def start_with_data_extraction(self, data_prompts: tuple[str, str]) -> str | Exception:
+        try:
+            system_prompt, user_prompt = data_prompts
+
+            data_extraction_llm = self.groq_llm
+            data_extraction_llm.add_system(system_prompt)
+            data_extraction_llm.add_user(user_prompt)
+
+            return await data_extraction_llm.groq_chat(
+                model=MODEL.scout, temperature=.1,
+                max_completion_tokens=8000
+            )
+
+        except Exception as ex:
+            return ex
+
+    @listen(start_with_data_extraction)
+    def validating_extracted_data(self, input_data: str | Exception):
+        if isinstance(input_data, Exception):
+            self.state.error_exception = input_data
+            return "error_data_extraction"
+
+        if isinstance(input_data, str):
+            is_valid, parsed_data, error = self._validating_data_extraction_response(input_data)
+
+            if is_valid:
+                return json.dumps(parsed_data)
+
+            else:
+                self.state.error_exception = error
+                return "error_data_extraction"
+
+        self.state.error_exception = "Unexpected error in validation"
+        return "error_data_extraction"
+
+    @listen(validating_extracted_data)
+    def updating_states(self, data: str):
+        if data == "error_data_extraction":
+            return False
+        else:
+            self.state.data_extraction_handler = data
+            return True
+
+
+
+
+    @router(updating_states)
+    def data_extraction_router(self, data: bool):
+        if data:
+            return "ERROR"
+        else:
+            return "DATA_EXTRACTION_PASSED"
+
+    # @listen("ERROR")
+    # def error_output(self):
+    #     return self.state.error_exception
+    #
+    # @listen("DATA_EXTRACTION_PASSED")
+    # def good_output(self):
+    #     return self.state.final_output_handler
+    #
+    # @listen(or_(error_output, good_output))
+    # def final_output(self, data):
+    #     return str(data)
+
+    @listen("DATA_EXTRACTION_PASSED")
+    async def generating_prompts_for_validator(self):
+        try:
+            # translated_history = await self.translated_memory.get_messages(include_metadata=True)
+            # original_history = await self.original_memory.get_messages(include_metadata=True)
+            full_history = await self.memory.get_messages(include_metadata=True)
+
+            user_prompt = await PROMPTS.user_fact_validator_template.render_async(
+                translated_user_input=self.state.translated_user_input,
+                translated_conversation_history=translated_history,
+                original_conversation_history=original_history,
+                extracted_data_context=self.state.current_data_extraction
+            )
+            system_prompt = PROMPTS.system_fact_validator
+            return system_prompt, user_prompt
+        except Exception as ex:
+            return ex
+
+    @listen(generating_prompts_for_validator)
+    async def facts_validator(self, _prompts: tuple[str, str] | Exception):
+        if isinstance(_prompts, Exception):
+            self.state.error_exception = _prompts
+            return "error_fact_validation"
+        try:
+            system_prompt, user_prompt = _prompts
+            self.validator_worker.add_system(system_prompt)
+            self.validator_worker.add_user(user_prompt)
+            facts_response = await self.validator_worker.groq_chat(
+                model=MODEL.maverick, temperature=.1
+            )
+            self.state.current_fact_validation = facts_response
+            return facts_response
+
+        except Exception as ex:
+            self.state.error_exception = ex
+            return "error_fact_validation"
+
+    @router(facts_validator)
+    def fact_validator_router(self, facts_response: str):
+        if facts_response == "error_fact_validation":
+            return "ERROR"
+        else:
+            return "FACT_VALIDATION_PASSED"
+
+    @listen("FACT_VALIDATION_PASSED")
+    def validation_passed(self):
+        return self.state.current_fact_validation
+
+    @listen("ERROR")
+    def error_exception_catcher(self):
+        return self.state.error_exception
+
+
+
+    def _validating_data_extraction_response(self, input_str: str) -> tuple[bool, dict | None, str | None]:
+        if not input_str:
+            return False, None, "Empty LLM Response"
+
+        try:
+            print(input_str, "\n##END OF INPUT")
+            data = json.loads(input_str)
+
+        except json.JSONDecodeError:
+            extracted = self.extract_json(input_str)
+
+            if not extracted:
+                return False, None, "No Json found in response"
+
+            try:
+                data = json.loads(extracted)
+            except Exception as ex:
+                return False, None, f"Json decode failed after extraction: {ex}"
+
+        except Exception as _ex:
+            return False, None, f"Unexpected error: {str(_ex)}"
+
+
+
+        if data.get("message") in ['FORMAT_ERROR', 'NO_RELEVANT_CONTEXT']:
+            return True, data, None
+
+
+        try:
+            ExtractionResponse.model_validate(data)
+            return True, data, None
+
+        except json.JSONDecodeError as je:
+            return False, None, f"Invalid JSON: {je}"
+
+        except ValidationError as ve:
+            first_error = ve.errors()[0]
+            field = ".".join(str(x) for x in first_error["loc"])
+            return False, None, f"{field}: {first_error["msg"]}"
+
+
+
+    @staticmethod
+    def extract_json(text: str) -> str | None:
+        if not text:
+            return None
+        text = text.strip()
+
+        text = re.sub(r"```json\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"```", "", text)
+
+        stack = []
+        _start = None
+
+        for i, char in enumerate(text):
+            if char == "{":
+                if _start is None:
+                    _start = i
+                stack.append("{")
+
+            elif char == "}":
+                if stack:
+                    stack.pop()
+                    if not stack and _start is not None:
+                        return text[_start:i + 1]
+
+        return None
+
+class IntentFlow:
+    def __init__(self, **kwargs: Any):
+        self.message = "hello world"
+        self.kwargs = kwargs
+        self._flow: Flow[BaseModel] | None = None
+
+    @property
+    def flow(self):
+        if self._flow is None:
+            self._flow = _InternalIntentClassifier()
+        return self._flow
+
+    async def run(self):
+        return self.message
+
+#
+# _metadata = {
+#     "original_text": "original text test",
+#     "created_at": "created at test",
+#     "source_language": "source language test",
+#     "translated_text": "translation text test"
+# }
+# # test_func = _PROMPTS.user_data_extractor(_metadata)
+# # test_user_prompt = asyncio.run(test_func)
+# # print(test_user_prompt)
+#
+#
+# async def intent_flow():
+#     _inputs = {
+#         "user_id": str(uuid.uuid4()),
+#         "data_input": _metadata
+#     }
+#     _intent = _InternalIntentClassifier()
+#     return await _intent.kickoff_async(inputs=_inputs)
+#
+#
+# test_flow_intent = asyncio.run(intent_flow())
+# print(test_flow_intent)
