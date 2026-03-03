@@ -298,14 +298,22 @@ class IntentFlowTemporary:
 
         return flow
 
+
+
+
+
+
+
+
+
+
+
 @dataclass(slots=True)
 class LanguageObject:
     translated_text: str
     original_text: str
     created_at: str
     source_language: str
-
-
 
 class PromptsV1:
     def __init__(self):
@@ -398,15 +406,11 @@ class IntentFlowStates(BaseModel):
 
 
 class _IntentClassifier(Flow[IntentFlowStates]):
-    def __init__(self, **kwargs):
-        self._message_storage_v1: MessageStorageV1 | None = None
+    def __init__(self, user_id: str | uuid.UUID | Any, message_storage: MessageStorageV1, **kwargs: Any):
         super().__init__(**kwargs)
+        self.user_id = user_id
+        self.message_storage = message_storage
 
-    @property
-    def memory(self):
-        if self._message_storage_v1 is None:
-            self._message_storage_v1 = MessageStorageV1(self.state.user_id)
-        return self._message_storage_v1
 
     @property
     def groq_llm(self):
@@ -421,7 +425,7 @@ class _IntentClassifier(Flow[IntentFlowStates]):
         system_prompt = PROMPTS.system_data_extractor
         user_prompt = await PROMPTS.user_data_extractor(
             input_obj_data=self.state.data_input,
-            history=self.memory
+            history=self.message_storage
         )
         return system_prompt, user_prompt
 
@@ -483,7 +487,7 @@ class _IntentClassifier(Flow[IntentFlowStates]):
         try:
             extracted_data = self.state.data_extraction_handler
             user_prompt = await PROMPTS.user_facts_validator(
-                history=self.memory,
+                history=self.message_storage,
                 input_obj_data=self.state.data_input,
                 extracted_data=extracted_data
             )
@@ -619,17 +623,23 @@ class IntentFlow:
             self,
             user_id: str | uuid.UUID | Any,
             input_data_obj: dict[str, Any],
+            message_storage: MessageStorageV1
     ):
         self._flow: Flow[BaseModel] | None = None
         self._input = {
             "user_id":user_id,
             "data_input":input_data_obj,
         }
+        self.user_id = user_id
+        self.message_storage = message_storage
 
     @property
     def flow(self):
         if self._flow is None:
-            self._flow = _IntentClassifier()
+            self._flow = _IntentClassifier(
+                user_id=self.user_id,
+                message_storage=self.message_storage
+            )
         return self._flow
 
     async def run(self):
