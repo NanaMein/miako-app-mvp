@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, Literal
 from crewai.flow.flow import Flow, start, listen, router, or_
 from pydantic import BaseModel, ConfigDict
@@ -50,11 +51,12 @@ class LanguageState(BaseModel):
 
 
 class _LanguageRouter(Flow[LanguageState]):
-    def __init__(self, **kwargs: Any):
-        self._message_memory: MessageStorageV1 | None = None
+    def __init__(self, user_id: str | uuid.UUID | Any, message_storage: MessageStorageV1,**kwargs: Any):
         super().__init__(**kwargs)
+        self.user_id = user_id
         self.chat_identifier = GroqLLM()
         self.chat_translator = GroqLLM()
+        self.message_storage = message_storage
 
 
     @start()
@@ -104,7 +106,7 @@ class _LanguageRouter(Flow[LanguageState]):
             "created_at": datetime.now(timezone.utc).isoformat(),
             "source_language": self.state.source_language,
         }
-        await self.memory.add_human_message(
+        await self.message_storage.add_human_message(
             content=processed_message,
             metadata=metadata
         )
@@ -127,12 +129,6 @@ class _LanguageRouter(Flow[LanguageState]):
         raise Exception("Internal error")
 
 
-    @property
-    def memory(self):
-        if self._message_memory is None:
-            self._message_memory = MessageStorageV1(self.state.user_id)
-        return self._message_memory
-
     async def _language_classifier_chat(self, input_message: str):
         self.chat_identifier.add_system(LANGUAGE.classifier)
         self.chat_identifier.add_user(input_message)
@@ -149,7 +145,8 @@ class _LanguageRouter(Flow[LanguageState]):
         return True
 
     async def _translate_to_english(self, input_message: str) -> str:
-        conversation_history = await self.memory.get_messages(include_metadata=True)
+        conversation_history = await self.message_storage.get_messages(include_metadata=True)
+        print('LANGUAGE',str(conversation_history))
         user_prompt = await LANGUAGE.user_prompt_translator(
             current_input=input_message,
             conversation_history=conversation_history
@@ -168,10 +165,10 @@ class _LanguageRouter(Flow[LanguageState]):
 
 
 class LanguageFlow:
-    def __init__(self, user_id: str, original_message: str):
+    def __init__(self, user_id: str, original_message: str, message_storage: MessageStorageV1):
         self.original_message = original_message
         self.user_id = user_id
-        self.flow = _LanguageRouter()
+        self.flow = _LanguageRouter(user_id=user_id, message_storage=message_storage)
 
     async def run(self) -> dict[str, Any]:
         #self.flow.plot()
@@ -181,6 +178,22 @@ class LanguageFlow:
                 "original_message": self.original_message,
             }
         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 from llm_workflow.memory.short_term_memory.message_cache import MessageStorage
