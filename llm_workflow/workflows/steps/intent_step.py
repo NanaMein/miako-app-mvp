@@ -31,7 +31,7 @@ class Prompts:
     documentation_context = _intent_library.get_prompt("documentation-context")
 
 
-PROMPTS = Prompts()
+PROMPTS_OLD = Prompts()
 
 class Fact(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
@@ -55,7 +55,7 @@ class IntentState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
-class _IntentClassifier(Flow[IntentState]):
+class _IntentClassifierOriginal(Flow[IntentState]):
     def __init__(self, **kwargs: Any):
         self._translated_memory: MessageStorage | None = None
         self._original_memory: MessageStorage | None = None
@@ -125,13 +125,13 @@ class _IntentClassifier(Flow[IntentState]):
             translated_history = await self.translated_memory.get_messages(include_metadata=True)
             original_history = await self.original_memory.get_messages(include_metadata=True)
 
-            user_prompt = await PROMPTS.user_fact_validator_template.render_async(
+            user_prompt = await PROMPTS_OLD.user_fact_validator_template.render_async(
                 translated_user_input=self.state.translated_user_input,
                 translated_conversation_history=translated_history,
                 original_conversation_history=original_history,
                 extracted_data_context=self.state.current_data_extraction
             )
-            system_prompt = PROMPTS.system_fact_validator
+            system_prompt = PROMPTS_OLD.system_fact_validator
             return system_prompt, user_prompt
         except Exception as ex:
             return ex
@@ -226,13 +226,13 @@ class _IntentClassifier(Flow[IntentState]):
         translated_str = self.memory_parsing_to_string(_tran_list)
 
 
-        user_prompt = await PROMPTS.user_data_extractor_template.render_async(
+        user_prompt = await PROMPTS_OLD.user_data_extractor_template.render_async(
             translated_user_input=self.state.translated_user_input,
             original_conversation=original_str,
             translated_conversation=translated_str,
-            documentation_context=PROMPTS.documentation_context
+            documentation_context=PROMPTS_OLD.documentation_context
         )
-        system_prompt = PROMPTS.system_data_extractor
+        system_prompt = PROMPTS_OLD.system_data_extractor
         print('=== STARTING PROMPTS ===')
         print(system_prompt, "\n")
         print(user_prompt, "\n")
@@ -247,21 +247,21 @@ async def _prompts_for_first_phase_mock(
     _orig_mock_list = await original_memory._get_user_memory()
     _orig_mock_list.messages.extend(fake_memory.taglish_original_history)
     orig_list = await original_memory.get_messages(include_metadata=True)
-    original_str = _IntentClassifier.memory_parsing_to_string(orig_list)
+    original_str = _IntentClassifierOriginal.memory_parsing_to_string(orig_list)
 
     _trans_mock_list = await translated_memory._get_user_memory()
     _trans_mock_list.messages.extend(fake_memory.taglish_translated_history)
     trans_list = await translated_memory.get_messages(include_metadata=True)
-    translated_str = _IntentClassifier.memory_parsing_to_string(trans_list)
+    translated_str = _IntentClassifierOriginal.memory_parsing_to_string(trans_list)
 
-    user_prompt = await PROMPTS.user_data_extractor_template.render_async(
+    user_prompt = await PROMPTS_OLD.user_data_extractor_template.render_async(
         translated_user_input=fake_memory.taglish_user_input,
         original_conversation=original_str,
         translated_conversation=translated_str,
-        documentation_context=PROMPTS.documentation_context
+        documentation_context=PROMPTS_OLD.documentation_context
     )
 
-    system_prompt = PROMPTS.system_data_extractor
+    system_prompt = PROMPTS_OLD.system_data_extractor
     print('=== STARTING PROMPTS ===')
     print( system_prompt, "\n")
     print( user_prompt, "\n")
@@ -285,7 +285,7 @@ class IntentFlowTemporary:
         self.translated_user_input = translated_user_input
         self.original_user_input = original_user_input
         self.user_id = user_id
-        self.flow = _IntentClassifier()
+        self.flow = _IntentClassifierOriginal()
 
     async def run(self):
         flow = await self.flow.kickoff_async(inputs={
@@ -307,20 +307,20 @@ class LanguageObject:
 
 
 
-class TemporaryPrompts:
+class PromptsV1:
     def __init__(self):
         self._doc_context = None
         self._user_data_extractor_template = None
-        self._intent = None
+        self._intent_library = None
         self._system_data_extractor_prompt = None
         self._user_facts_validator_template = None
         self._system_facts_validator_prompt = None
 
     @property
     def intent(self):
-        if self._intent is None:
-            self._intent = IntentLibrary()
-        return self._intent
+        if self._intent_library is None:
+            self._intent_library = IntentLibrary()
+        return self._intent_library
 
     @property
     def documentation_context(self):
@@ -382,11 +382,11 @@ class TemporaryPrompts:
         )
         return user_prompt
 
-_PROMPTS = TemporaryPrompts()
+PROMPTS = PromptsV1()
 
 
 
-class StatesFlowTest(BaseModel):
+class IntentFlowStates(BaseModel):
     user_id: str | uuid.UUID | Any = ""
     data_input: dict[str, Any] = Field(default_factory=dict)
     data_extraction_handler: str = ""
@@ -397,7 +397,7 @@ class StatesFlowTest(BaseModel):
 
 
 
-class _InternalIntentClassifier(Flow[StatesFlowTest]):
+class _IntentClassifier(Flow[IntentFlowStates]):
     def __init__(self, **kwargs):
         self._message_storage_v1: MessageStorageV1 | None = None
         super().__init__(**kwargs)
@@ -418,8 +418,8 @@ class _InternalIntentClassifier(Flow[StatesFlowTest]):
 
     @listen(start_or_testing_phase)
     async def prep_prompts(self) -> tuple[str, str]:
-        system_prompt = _PROMPTS.system_data_extractor
-        user_prompt = await _PROMPTS.user_data_extractor(
+        system_prompt = PROMPTS.system_data_extractor
+        user_prompt = await PROMPTS.user_data_extractor(
             input_obj_data=self.state.data_input,
             history=self.memory
         )
@@ -482,12 +482,12 @@ class _InternalIntentClassifier(Flow[StatesFlowTest]):
     async def generating_prompts_for_validator(self):
         try:
             extracted_data = self.state.data_extraction_handler
-            user_prompt = await _PROMPTS.user_facts_validator(
+            user_prompt = await PROMPTS.user_facts_validator(
                 history=self.memory,
                 input_obj_data=self.state.data_input,
                 extracted_data=extracted_data
             )
-            system_prompt = _PROMPTS.system_facts_validator
+            system_prompt = PROMPTS.system_facts_validator
             return system_prompt, user_prompt
         except Exception as ex:
             return ex
@@ -629,7 +629,7 @@ class IntentFlow:
     @property
     def flow(self):
         if self._flow is None:
-            self._flow = _InternalIntentClassifier()
+            self._flow = _IntentClassifier()
         return self._flow
 
     async def run(self):
