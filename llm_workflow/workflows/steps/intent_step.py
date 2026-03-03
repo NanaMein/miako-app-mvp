@@ -1,5 +1,6 @@
+import uuid
 from typing import Union, Any, List
-from crewai.flow.flow import Flow, start, listen, router
+from crewai.flow.flow import Flow, start, listen, router, or_
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from llm_workflow.llm.groq_llm import GroqLLM, MODEL
 from llm_workflow.prompts.prompt_library import IntentLibrary
@@ -10,6 +11,7 @@ from jinja2 import Template
 from dataclasses import dataclass
 import asyncio
 import json
+import re
 
 
 
@@ -311,6 +313,8 @@ class TemporaryPrompts:
         self._user_data_extractor_template = None
         self._intent = None
         self._system_data_extractor_prompt = None
+        self._user_facts_validator_template = None
+        self._system_facts_validator_prompt = None
 
     @property
     def intent(self):
@@ -318,7 +322,7 @@ class TemporaryPrompts:
             self._intent = IntentLibrary()
         return self._intent
 
-        @property
+    @property
     def documentation_context(self):
         if self._doc_context is None:
             self._doc_context  = self.intent.get_prompt("documentation-context")
@@ -331,6 +335,14 @@ class TemporaryPrompts:
             _template = Template(_prompt, enable_async=True)
             self._user_data_extractor_template = _template
         return self._user_data_extractor_template
+
+    @property
+    def _get_user_facts_validator_template(self) -> Template:
+        if self._user_facts_validator_template is None:
+            _prompt = self.intent.get_prompt("v1.facts-validator.user-prompt")
+            _template = Template(_prompt, enable_async=True)
+            self._user_facts_validator_template = _template
+        return self._user_facts_validator_template
 
     @property
     def system_data_extractor(self) -> str:
@@ -352,6 +364,24 @@ class TemporaryPrompts:
         )
         return user_prompt
 
+    @property
+    def system_facts_validator(self):
+        if self._system_facts_validator_prompt is None:
+            self._system_facts_validator_prompt = self.intent.get_prompt("v1.facts-validator.system-prompt")
+        return self._system_facts_validator_prompt
+
+
+    async def user_facts_validator(self, extracted_data:str, history: MessageStorageV1, input_obj_data: dict[str, Any]) -> str:
+        lang_obj = LanguageObject(**input_obj_data)
+        _template = self._get_user_facts_validator_template
+        conversation_history = await history.get_messages(include_metadata=True)
+        user_prompt = await _template.render_async(
+            translated_user_input=lang_obj.translated_text,
+            conversation_history=conversation_history,
+            extracted_data_context=extracted_data
+        )
+        return user_prompt
+
 _PROMPTS = TemporaryPrompts()
 
 
@@ -361,7 +391,7 @@ class StatesFlowTest(BaseModel):
     data_input: dict[str, Any] = Field(default_factory=dict)
     data_extraction_handler: str = ""
     error_exception: Exception | str | None = None
-    final_output_handler: str =""
+    facts_validation_handler: str = ""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -413,10 +443,10 @@ class _InternalIntentClassifier(Flow[StatesFlowTest]):
             return ex
 
     @listen(start_with_data_extraction)
-    def validating_extracted_data(self, input_data: str | Exception):
+    def validating_extracted_data(self, input_data: str | Exception) -> str | None:
         if isinstance(input_data, Exception):
             self.state.error_exception = input_data
-            return "error_data_extraction"
+            return None
 
         if isinstance(input_data, str):
             is_valid, parsed_data, error = self._validating_data_extraction_response(input_data)
@@ -426,92 +456,94 @@ class _InternalIntentClassifier(Flow[StatesFlowTest]):
 
             else:
                 self.state.error_exception = error
-                return "error_data_extraction"
+                return None
 
         self.state.error_exception = "Unexpected error in validation"
-        return "error_data_extraction"
+        return None
 
     @listen(validating_extracted_data)
-    def updating_states(self, data: str):
-        if data == "error_data_extraction":
-            return False
-        else:
+    def updating_states(self, data: str | None):
+        if data is not None:
             self.state.data_extraction_handler = data
             return True
-
-
+        else:
+            return False
 
 
     @router(updating_states)
     def data_extraction_router(self, data: bool):
-        if data:
-            return "ERROR"
-        else:
-            return "DATA_EXTRACTION_PASSED"
 
-    # @listen("ERROR")
-    # def error_output(self):
-    #     return self.state.error_exception
-    #
-    # @listen("DATA_EXTRACTION_PASSED")
-    # def good_output(self):
-    #     return self.state.final_output_handler
-    #
-    # @listen(or_(error_output, good_output))
-    # def final_output(self, data):
-    #     return str(data)
+        if data:
+            return "DATA_EXTRACTION_PASSED"
+        else:
+            return "DATA_EXTRACTION_ERROR"
 
     @listen("DATA_EXTRACTION_PASSED")
     async def generating_prompts_for_validator(self):
         try:
-            # translated_history = await self.translated_memory.get_messages(include_metadata=True)
-            # original_history = await self.original_memory.get_messages(include_metadata=True)
-            full_history = await self.memory.get_messages(include_metadata=True)
-
-            user_prompt = await PROMPTS.user_fact_validator_template.render_async(
-                translated_user_input=self.state.translated_user_input,
-                translated_conversation_history=translated_history,
-                original_conversation_history=original_history,
-                extracted_data_context=self.state.current_data_extraction
+            extracted_data = self.state.data_extraction_handler
+            user_prompt = await _PROMPTS.user_facts_validator(
+                history=self.memory,
+                input_obj_data=self.state.data_input,
+                extracted_data=extracted_data
             )
-            system_prompt = PROMPTS.system_fact_validator
+            system_prompt = _PROMPTS.system_facts_validator
             return system_prompt, user_prompt
         except Exception as ex:
             return ex
+
+    @listen("DATA_EXTRACTION_ERROR")
+    def data_extraction_failure(self):
+        return False
+
 
     @listen(generating_prompts_for_validator)
     async def facts_validator(self, _prompts: tuple[str, str] | Exception):
         if isinstance(_prompts, Exception):
             self.state.error_exception = _prompts
-            return "error_fact_validation"
+            return False
         try:
             system_prompt, user_prompt = _prompts
-            self.validator_worker.add_system(system_prompt)
-            self.validator_worker.add_user(user_prompt)
-            facts_response = await self.validator_worker.groq_chat(
-                model=MODEL.maverick, temperature=.1
+            llm = self.groq_llm
+            llm.add_system(system_prompt)
+            llm.add_user(user_prompt)
+            facts_response = await llm.groq_chat(
+                model=MODEL.gpt_oss_120,
+                reasoning_effort="low",
+                temperature=.1,
+                max_completion_tokens=20_000
             )
-            self.state.current_fact_validation = facts_response
-            return facts_response
+
+            self.state.facts_validation_handler = facts_response
+            return True
 
         except Exception as ex:
             self.state.error_exception = ex
-            return "error_fact_validation"
+            return False
 
     @router(facts_validator)
-    def fact_validator_router(self, facts_response: str):
-        if facts_response == "error_fact_validation":
-            return "ERROR"
+    def facts_validation_router(self, data):
+        if data:
+            return "FACTS_VALIDATED"
         else:
-            return "FACT_VALIDATION_PASSED"
+            return "FACTS_VALIDATION_ERROR"
 
-    @listen("FACT_VALIDATION_PASSED")
-    def validation_passed(self):
-        return self.state.current_fact_validation
+    @listen("FACTS_VALIDATED")
+    def facts_validation_passed(self):
+        return True
 
-    @listen("ERROR")
-    def error_exception_catcher(self):
-        return self.state.error_exception
+    @listen("FACTS_VALIDATION_ERROR")
+    def facts_validation_failure(self):
+        return False
+
+
+    @listen(or_(facts_validation_passed, facts_validation_failure, data_extraction_failure))
+    def finalizing_output(self, is_passed: bool) -> Exception | str:
+        if is_passed:
+            return self.state.facts_validation_handler
+        else:
+            ex = Exception(f"Flow error output: {str(self.state.error_exception)}")
+            return ex
 
 
 
@@ -520,7 +552,6 @@ class _InternalIntentClassifier(Flow[StatesFlowTest]):
             return False, None, "Empty LLM Response"
 
         try:
-            print(input_str, "\n##END OF INPUT")
             data = json.loads(input_str)
 
         except json.JSONDecodeError:
@@ -584,10 +615,16 @@ class _InternalIntentClassifier(Flow[StatesFlowTest]):
         return None
 
 class IntentFlow:
-    def __init__(self, **kwargs: Any):
-        self.message = "hello world"
-        self.kwargs = kwargs
+    def __init__(
+            self,
+            user_id: str | uuid.UUID | Any,
+            input_data_obj: dict[str, Any],
+    ):
         self._flow: Flow[BaseModel] | None = None
+        self._input = {
+            "user_id":user_id,
+            "data_input":input_data_obj,
+        }
 
     @property
     def flow(self):
@@ -596,7 +633,7 @@ class IntentFlow:
         return self._flow
 
     async def run(self):
-        return self.message
+        return await self.flow.kickoff_async(inputs=self._input)
 
 #
 # _metadata = {
@@ -616,6 +653,7 @@ class IntentFlow:
 #         "data_input": _metadata
 #     }
 #     _intent = _InternalIntentClassifier()
+#     _intent.plot()
 #     return await _intent.kickoff_async(inputs=_inputs)
 #
 #
