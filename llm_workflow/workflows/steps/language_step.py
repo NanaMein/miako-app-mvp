@@ -155,9 +155,9 @@ class _LanguageRouter(Flow[LanguageState]):
         self.chat_translator.add_system(system_prompt)
         self.chat_translator.add_user(user_prompt)
         response = await self.chat_translator.groq_chat(
-            model=MODEL.gpt_oss_20,
-            max_completion_tokens=8000,
-            reasoning_effort="medium",
+            model=MODEL.gpt_oss_120,
+            max_completion_tokens=20_000,
+            reasoning_effort="low",
             tools=[{"type": "browser_search"}]
         )
         return response
