@@ -1,3 +1,6 @@
+import asyncio
+import json
+import uuid
 from typing import Optional, Any, Union
 from crewai.flow import Flow, start, listen, router, or_
 from crewai.types.streaming import FlowStreamingOutput
@@ -155,13 +158,28 @@ class _AdaptiveChatbotEngineV1ForRefactor(Flow[EngineStates]):
         return await language_flow.run()
 
     @listen(language_layer)
-    async def intent_classifier(self, translation_response: dict[str, Any]):
+    async def intent_classifier(self, translation_response: dict[str, Any]) -> Exception | str:
         intent_flow = IntentFlow(
             user_id=self.state.input_user_id,
-            original_user_input=self.state.input_message,
-            translated_user_input=translation_response
+            input_data_obj=translation_response
         )
         return await intent_flow.run()
+
+    @listen(intent_classifier)
+    async def final_answer_test(self, data: Exception | str):
+        if isinstance(data, Exception):
+            return Exception(str(data))
+
+        memory = await self.memory.get_messages(include_metadata=True)
+        full_memory = json.dumps(memory)
+        intents = data
+        full_text = f"""===FULL CONVERSATION HISTORY===\n
+        {full_memory}\n
+        ===INTENTS===\n
+        {intents}\n
+        ===END===\n
+        """
+        return full_text
 
     @property
     def memory(self) -> MessageStorageV1:
