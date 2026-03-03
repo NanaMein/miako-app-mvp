@@ -90,22 +90,6 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
         return response
 
 
-        # full_memory = json.dumps(memory)
-        # intents = data
-        # full_text = f"""
-        # ===USER ID===\n
-        # ###Instance id {self.user_id}\n
-        # ###Intent id {_id}\n
-        # ===FULL CONVERSATION HISTORY===\n
-        # {full_memory}\n
-        # ===INTENTS===\n
-        # {intents}\n
-        # ===END===\n
-        # """
-        # return full_text
-        # return data
-
-
 
 
 class AdaptiveChatbot:
