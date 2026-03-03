@@ -17,6 +17,67 @@ from llm_workflow.workflows.steps.language_step import LanguageFlow, LanguageFlo
 from llm_workflow.workflows.steps.intent_step import IntentFlow, IntentFlowTemporary
 
 
+class EngineStates(BaseModel):
+    input_message: str = ""
+    input_user_id: str = ""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class _AdaptiveChatbotEngine(Flow[EngineStates]):
+    def __init__(self, **kwargs: Any):
+        self._original_memory: MessageStorage | None = None
+        self._translated_memory: MessageStorage | None = None
+        self._memory_storage: MessageStorageV1 | None = None
+        super().__init__(**kwargs)
+        self.chatbot = GroqLLM()
+
+
+
+    @start()
+    async def safety_content_moderator(self):
+        pass #For development only, assume there is a content moderator here.
+
+
+    @listen(safety_content_moderator)
+    async def language_layer(self) -> dict[str, Any]:
+        language_flow = LanguageFlow(
+            user_id=self.state.input_user_id,
+            original_message=self.state.input_message
+        )
+        return await language_flow.run()
+
+    @listen(language_layer)
+    async def intent_classifier(self, translation_response: dict[str, Any]) -> Exception | str:
+        intent_flow = IntentFlow(
+            user_id=self.state.input_user_id,
+            input_data_obj=translation_response
+        )
+        return await intent_flow.run()
+
+    @listen(intent_classifier)
+    async def final_answer_test(self, data: Exception | str):
+        if isinstance(data, Exception):
+            return Exception(str(data))
+
+        memory = await self.memory.get_messages(include_metadata=True)
+        full_memory = json.dumps(memory)
+        intents = data
+        full_text = f"""===FULL CONVERSATION HISTORY===\n
+        {full_memory}\n
+        ===INTENTS===\n
+        {intents}\n
+        ===END===\n
+        """
+        return full_text
+
+    @property
+    def memory(self) -> MessageStorageV1:
+        if self._memory is None:
+            self._memory = MessageStorageV1(user_id=self.state.input_user_id)
+        return self._memory
+
+
+
 class AppResources:
     library = PromptLibrary()
 
