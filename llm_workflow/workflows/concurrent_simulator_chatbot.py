@@ -110,7 +110,7 @@ async def execute_with_timer(user_id: str, message: str):
 async def run_concurrent_all_language():
     tasks = []
     state_num = 5
-    range_num = 10
+    range_num = 1
 
     tagalog = SampleStates(sample=SAMPLE_TAGALOG, state=state_num)
     for _ in range(range_num):
@@ -146,15 +146,17 @@ async def run_concurrent_all_language():
 
     for r in task_results:
         print(f"[{r['user_id']}]")
-        print(f"Time: {r['execution_time']:.4f}s")
         print(f"Success: {r['success']}")
-        print(f"Result: {r['result']}")
+        print(f"Total Time: {r['total_time']:.4f}s")
+        print(f"Flow Time: {r['flow_time']:.4f}s")
+        print(f"Init Time: {r['init_time']:.4f}s")
+        print(f"Result Length: {r['result_length']}")
         print("-" * 50)
 
     return task_results
 
 def summarize(_results):
-    times = [r["execution_time"] for r in _results if r["success"]]
+    times = [r["total_time"] for r in _results if r["success"]]
 
     print("\n=== SUMMARY ===")
     print(f"Total requests: {len(_results)}")
