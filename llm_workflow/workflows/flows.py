@@ -12,15 +12,14 @@ from llm_workflow.workflows.steps.intent_step import IntentFlow
 
 class EngineStates(BaseModel):
     input_message: str = ""
-    input_user_id: str = ""
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class _AdaptiveChatbotEngine(Flow[EngineStates]):
-    def __init__(self, **kwargs: Any):
-        self._memory_storage: MessageStorageV1 | None = None
+    def __init__(self, user_id: str | uuid.UUID | Any,  **kwargs: Any):
         super().__init__(**kwargs)
-        self.chatbot = GroqLLM()
+        self.user_id = user_id
+        self.message_storage = MessageStorageV1(user_id=user_id)
 
 
 
@@ -32,28 +31,37 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
     @listen(safety_content_moderator)
     async def language_layer(self) -> dict[str, Any]:
         language_flow = LanguageFlow(
-            user_id=self.state.input_user_id,
-            original_message=self.state.input_message
+            user_id=self.user_id,
+            original_message=self.state.input_message,
+            message_storage=self.message_storage
         )
-        return await language_flow.run()
+        response = await language_flow.run()
+        return response
 
     @listen(language_layer)
-    async def intent_classifier(self, translation_response: dict[str, Any]) -> Exception | str:
+    async def intent_classifier(self, translation_response: dict[str, Any]) -> tuple[Exception | str, str]:
         intent_flow = IntentFlow(
-            user_id=self.state.input_user_id,
-            input_data_obj=translation_response
+            user_id=self.user_id,
+            input_data_obj=translation_response,
+            message_storage=self.message_storage
         )
-        return await intent_flow.run()
+        response = await intent_flow.run()
+        return response, intent_flow.flow.state.user_id
 
     @listen(intent_classifier)
-    async def final_answer_test(self, data: Exception | str):
-        if isinstance(data, Exception):
-            return Exception(str(data))
+    async def final_answer_test(self, data: tuple[ Exception | str, str]):
+        ex, _id = data
+        if isinstance(ex, Exception):
+            return Exception(str(ex))
 
-        memory = await self.memory.get_messages(include_metadata=True)
+        memory = await self.message_storage.get_messages(include_metadata=True)
         full_memory = json.dumps(memory)
         intents = data
-        full_text = f"""===FULL CONVERSATION HISTORY===\n
+        full_text = f"""
+        ===USER ID===\n
+        ###Instance id {self.user_id}\n
+        ###Intent id {_id}\n
+        ===FULL CONVERSATION HISTORY===\n
         {full_memory}\n
         ===INTENTS===\n
         {intents}\n
@@ -61,28 +69,23 @@ class _AdaptiveChatbotEngine(Flow[EngineStates]):
         """
         return full_text
 
-    @property
-    def memory(self) -> MessageStorageV1:
-        if self._memory_storage is None:
-            self._memory_storage = MessageStorageV1(user_id=self.state.input_user_id)
-        return self._memory_storage
-
 
 
 
 class AdaptiveChatbot:
     def __init__(self, user_id: str | uuid.UUID | Any, input_message: str):
+        self.user_id = user_id
         self._engine: Flow[BaseModel] | None = None
         self._all_input_data = {
             "input_user_id": user_id,
-            "input_message": input_message
+            "input_message": input_message,
         }
 
 
     @property
     def flow_engine(self) -> Flow[BaseModel]:
         if self._engine is None:
-            self._engine = _AdaptiveChatbotEngine()
+            self._engine = _AdaptiveChatbotEngine(user_id=self.user_id)
         return self._engine
 
     @property
@@ -95,6 +98,8 @@ class AdaptiveChatbot:
             if response is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Bad Request: {str(response)}")
             print("SSSSSSSSSSTART", response, "EEEEEEEEEEEEEEEND")
+            await self.message_storage.add_ai_message("TESTHING IF IF WORKS")
+            # await self.message_storage.add_ai_message(response)
             return response
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
