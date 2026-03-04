@@ -1,7 +1,6 @@
-from typing import Union, Any
-
+from typing import  Any
 from fastapi import APIRouter, HTTPException, status
-from llm_workflow.workflows.executor import ChatbotExecutor
+from llm_workflow.workflows.base import ChatbotExecutor
 from llm_workflow.workflows.flows import AdaptiveChatbot
 from pydantic import BaseModel, Field
 
@@ -13,11 +12,11 @@ router = APIRouter(
 )
 
 class MessageResponse(BaseModel):
-    message: str
+    message: str = Field(default="", description="User message")
 
 
 class MessageRequest(MessageResponse):
-    id: Union[str, Any] = Field(default="user_test")
+    id: str | Any = Field(default="user_test", description="User identifier")
 
 
 
