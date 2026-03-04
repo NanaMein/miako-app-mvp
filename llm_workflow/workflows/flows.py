@@ -109,7 +109,7 @@ class AdaptiveChatbot:
         return self._engine
 
     @property
-    def _input_data(self):
+    def _input_data(self) -> dict[str, Any]:
         return self._all_input_data
 
     async def run(self) -> Any | str | None:
