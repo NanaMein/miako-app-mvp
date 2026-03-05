@@ -20,9 +20,9 @@ ph = PasswordHasher()
 async def get_hash_password(password: str) -> str:
     return await run_in_threadpool(ph.hash, password)
 
-async def verify_hash_password(hash: str, password: str) -> bool:
+async def verify_hash_password(hash_password: str, password: str) -> bool:
     try:
-        return await run_in_threadpool(ph.verify, hash, password)
+        return await run_in_threadpool(ph.verify, hash_password, password)
 
     except (VerificationError, VerifyMismatchError, InvalidHashError):
         return False
