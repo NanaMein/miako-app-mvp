@@ -1,0 +1,11 @@
+
+services:
+  my-app:
+    build: .
+    image: miako-mvp-app:0.1
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    container_name: miako-mvp-app-running
+    restart: unless-stopped
