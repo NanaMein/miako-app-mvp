@@ -1,86 +1,84 @@
 from sqlmodel import select
 from models.user_model import User
 from core.security import (
-    login_with_access_and_refresh_token,
-    logout_and_delete_cookies,
     get_hash_password,
-    verify_hash_password
+    verify_hash_password,
+    get_current_user_id,
+    login_response_tokens,
+    get_access_token_by_refresh_token
 )
-from typing import  Any
-from fastapi import APIRouter, HTTPException, status, Depends, Response, Request
+from fastapi import APIRouter, HTTPException, status, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from databases.database import get_session
 from llm_workflow.workflows.base import ChatbotExecutor
 from llm_workflow.workflows.flows import AdaptiveChatbot
 from pydantic import BaseModel, Field
-import uuid
+
 
 class UserBase(BaseModel):
-    email: str
+    password: str = Field(..., description="User password")
 
 class UserCreate(UserBase):
     username: str
-    password: str
-
-class UserRead(UserBase):
-    uuid: uuid.UUID
+    email: str
 
 class UserLogin(UserBase):
-    password: str
+    email: str
+
+class RefreshTokenRequest(BaseModel):
+   refresh_token: str
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = Field(default="bearer")
 
 router = APIRouter(
     prefix="/api/chatbot",
     tags=["chatbot"],
 )
 
-class MessageResponse(BaseModel):
+class MessageRequest(BaseModel):
     message: str = Field(default="", description="User message")
 
 
-class MessageRequest(MessageResponse):
-    id: str | Any = Field(default="user_test", description="User identifier")
 
-
-
-
-@router.post("/send-message", response_model=MessageResponse)
-async def send_message(request: MessageRequest):
+@router.post("/send-message")
+async def send_message(request: MessageRequest, user_id = Depends(get_current_user_id)):
     try:
         chat_obj = AdaptiveChatbot(
-            user_id=request.id,
+            user_id=user_id,
             input_message=request.message,
         )
         chatbot = ChatbotExecutor(chat_obj)
         response = await chatbot.execute()
-        return MessageResponse(message=str(response))
+        return MessageRequest(message=str(response))
     except HTTPException:
         raise
     except Exception as err:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(err))
 
 
-#
-# router = APIRouter(
-#     prefix="/auth",
-#     tags=["Authentication"]
-# )
+
+@router.post("/sign-up", status_code=status.HTTP_201_CREATED)
+async def sign_up_user(payload: UserCreate, session: AsyncSession = Depends(get_session)):
+    try:
+        hashed_password = await get_hash_password(payload.password)
+
+        db_user = User(
+            email=payload.email,
+            user_name=payload.username,
+            hashed_password=hashed_password
+        )
+        session.add(db_user)
+        await session.commit()
+        await session.refresh(db_user)
+        return {"status": status.HTTP_201_CREATED}
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(err))
 
 
-
-@router.post("/sign-up", status_code=status.HTTP_201_CREATED, response_model=UserRead)
-async def sign_up_user(payload: UserCreate):
-    hashed_password = await get_hash_password(payload.password)
-
-    db_user = User(
-        email=payload.email,
-        user_name=payload.username,
-        hashed_password=hashed_password
-    )
-    # session.add(db_user)
-    # await session.commit()
-    # await session.refresh(db_user)
-    return db_user
-
-@router.post("/login", status_code=status.HTTP_200_OK, response_model=UserRead)
-async def login_user(payload: UserLogin, response: Response):
+@router.post("/login", status_code=status.HTTP_200_OK)
+async def login_user(payload: UserLogin, session: AsyncSession = Depends(get_session)):
     if not payload.email or not payload.password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email and password is required")
 
@@ -97,11 +95,21 @@ async def login_user(payload: UserLogin, response: Response):
     if not is_valid:
         raise error_401
 
-    login_with_access_and_refresh_token(subject=user.uuid, response=response)
-    return user
+    return login_response_tokens(subject=user.uuid)
 
-@router.post("/log-out")
-async def logout_user(response: Response):
-    logout_and_delete_cookies(response=response)
-    return {"detail":"Successfully log out your account"}
+@router.post("/refresh", response_model=RefreshTokenResponse)
+def me_test(payload: RefreshTokenRequest):
+    try:
+        new_access_token = get_access_token_by_refresh_token(
+            refresh_token=payload.refresh_token
+        )
+        return RefreshTokenResponse(
+            access_token=new_access_token,
+            token_type="bearer"
+        )
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(err))
+
 
