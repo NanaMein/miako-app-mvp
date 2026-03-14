@@ -22,7 +22,8 @@ from core.config import settings
 config = context.config
 
 # database_url = os.getenv("DATABASE_URL")
-database_url = settings.DATABASE_URL.get_secret_value()
+# database_url = settings.DATABASE_URL.get_secret_value()
+database_url = settings.DATABASE_URL
 if not database_url:
     raise ValueError("DATABASE_URL not set for migrations")
 
