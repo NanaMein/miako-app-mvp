@@ -41,7 +41,7 @@ def token_generator(sub: str| Any, token_type: str = "access"):
         "iat": time_now
     }
     return jwt.encode(
-        to_encode, key=settings.SECRET_KEY, algorithm=settings.ALGORITHM
+        to_encode, key=settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM
     )
 
 def token_decoder(token: str | None) -> dict[str, Any] | None:
@@ -51,7 +51,7 @@ def token_decoder(token: str | None) -> dict[str, Any] | None:
     try:
         return jwt.decode(
             token=token,
-            key=settings.SECRET_KEY,
+            key=settings.SECRET_KEY.get_secret_value(),
             algorithms=[settings.ALGORITHM]
         )
 
