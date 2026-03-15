@@ -1,6 +1,6 @@
 FROM python:3.13-slim-trixie
 
-COPY --from=ghcr.io/astral-sh/uv:0.8.4 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.8.4 /uv /uvx /usr/local/bin/
 
 WORKDIR /app
 
@@ -14,11 +14,8 @@ RUN uv sync --frozen --no-cache --no-install-project
 
 COPY . /app
 
-RUN uv sync --frozen --no-cache
-
-#CMD ["/app/.venv/bin/uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+
+RUN uv sync --frozen --no-cache
 
 ENTRYPOINT ["/app/entrypoint.sh"]
