@@ -25,6 +25,7 @@ MANIFEST
 
 # PyCharm files
 .idea/
+.idea
 
 # Virtual environment
 .venv/
@@ -34,8 +35,13 @@ ENV/
 
 # dotenv files
 .env
-.env
+*.env
 !.env.example
+.env.local
+.env.cred
+.env.prod
+.env.production
+.env.*
 
 # Test and coverage reports
 htmlcov/
