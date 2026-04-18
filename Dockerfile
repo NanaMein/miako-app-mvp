@@ -10,12 +10,12 @@ ENV PYTHONUNBUFFERED=1
 
 COPY pyproject.toml uv.lock /app/
 
-RUN uv sync --frozen --no-cache --no-install-project
-
 COPY . /app
 
-RUN chmod +x /app/entrypoint.sh
+RUN uv sync --frozen --no-cache \
+    && rm -rf /root/.cache /tmp/* /var/tmp/* \
+    && find /app -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-RUN uv sync --frozen --no-cache
+RUN chmod +x /app/execute.py
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/.venv/bin/python","/app/execute.py"]
