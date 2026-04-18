@@ -1,26 +1,23 @@
-
 services:
-  my-app:
+  miako-backend:
     build: .
-    image: miako-mvp-app:0.1
-    container_name: miako-mvp-app-running
-    #restart: unless-stopped
+    image: miako
+    container_name: miako-backend-container
     ports:
       - "8000:8000"
 
     env_file:
       - .env
     depends_on:
-      db:
+      miako-database:
         condition: service_healthy
     networks:
       - miako-network
 
-  db:
+  miako-database:
     image: postgres:15-alpine
-    container_name: miako-postgres-db
+    container_name: miako-database-container
     restart: unless-stopped
-    # Postgres also needs credentials from the .env file
     env_file:
       - .env
     environment:
@@ -30,9 +27,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - miako-data-volume:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -41,7 +38,7 @@ services:
     # No ports exposed to host for security
 
 volumes:
-  postgres_data:
+  miako-data-volume:
 
 networks:
   miako-network:
