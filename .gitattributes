@@ -1,0 +1,53 @@
+# ============================================
+# Line Ending Configuration
+# ============================================
+
+# Force LF line endings for scripts (Linux/Unix style)
+*.py    text eol=lf
+*.sh    text eol=lf
+*.bash  text eol=lf
+
+# Specific files (extra safety)
+# entrypoint.sh   text eol=lf
+# execute.py      text eol=lf
+
+# Optional: Handle other text files
+*.txt   text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.env   text eol=lf
+
+# ============================================
+# Binary Files (no line ending conversion)
+# ============================================
+
+# Images
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+
+# Archives & data
+*.zip   binary
+*.tar   binary
+*.gz    binary
+*.pdf   binary
+
+# Python bytecode
+*.pyc   binary
+__pycache__/  binary
+*.pyo   binary
+
+# Virtual environments
+.venv/  binary
+venv/   binary
+
+# ============================================
+# Git Attributes (itself)
+# ============================================
+
+.gitattributes  text eol=lf
