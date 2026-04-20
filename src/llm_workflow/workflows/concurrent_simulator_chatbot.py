@@ -1,5 +1,5 @@
-from llm_workflow.workflows.base import ChatbotExecutor
-from llm_workflow.workflows.flows import AdaptiveChatbot
+from src.llm_workflow.workflows.base import ChatbotExecutor
+from src.llm_workflow.workflows.flows import AdaptiveChatbot
 from typing import List, Dict, Any
 import time
 import asyncio
