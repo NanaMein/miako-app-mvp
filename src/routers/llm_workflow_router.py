@@ -10,8 +10,8 @@ from src.core.security import (
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.databases.database import get_session
-from llm_workflow.workflows.base import ChatbotExecutor
-from llm_workflow.workflows.flows import AdaptiveChatbot
+from src.llm_workflow.workflows.base import ChatbotExecutor
+from src.llm_workflow.workflows.flows import AdaptiveChatbot
 from pydantic import BaseModel, Field
 
 
