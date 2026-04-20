@@ -2,11 +2,11 @@ from sqlmodel import Field, Relationship
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime
-from schemas.user_schema import UserBase
+from src.schemas.user_schema import UserBase
 from uuid import uuid4, UUID
 
 if TYPE_CHECKING:
-    from models.conversation_model import Conversation
+    from src.models.conversation_model import Conversation
 
 
 class User(UserBase, table=True):

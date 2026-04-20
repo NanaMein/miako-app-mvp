@@ -2,12 +2,12 @@ from sqlmodel import Field, Relationship
 from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 from sqlalchemy import Column, DateTime
-from schemas.conversation_schema import ConversationBase
+from src.schemas.conversation_schema import ConversationBase
 
 
 if TYPE_CHECKING:
-    from models.message_model import Message
-    from models.user_model import User
+    from src.models.message_model import Message
+    from src.models.user_model import User
 
 class Conversation(ConversationBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

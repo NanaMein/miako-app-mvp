@@ -2,10 +2,10 @@ from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 from sqlmodel import Field, Relationship
 from sqlalchemy import Column, DateTime
-from schemas.message_schema import MessageBaseSchema
+from src.schemas.message_schema import MessageBaseSchema
 
 if TYPE_CHECKING:
-    from models.conversation_model import Conversation
+    from src.models.conversation_model import Conversation
 
 
 class Message(MessageBaseSchema, table=True):
