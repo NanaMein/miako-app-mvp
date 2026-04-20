@@ -8,14 +8,14 @@ from sqlmodel import SQLModel
 
 from alembic import context
 
-from models.message_model import Message
-from models.user_model import User
-from models.conversation_model import Conversation
+from src.models.message_model import Message
+from src.models.user_model import User
+from src.models.conversation_model import Conversation
 
 # import os
 # from dotenv import load_dotenv
 # load_dotenv()
-from core.config import settings
+from src.core.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
