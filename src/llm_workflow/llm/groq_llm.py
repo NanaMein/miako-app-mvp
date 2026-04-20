@@ -7,7 +7,7 @@ from groq.types.chat import (
     ChatCompletionAssistantMessageParam
 )
 from functools import lru_cache
-from llm_workflow.config_files.config import workflow_settings
+from src.llm_workflow.config_files.config import workflow_settings
 
 
 class GroqModelList:
