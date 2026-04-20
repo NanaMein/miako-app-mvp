@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from core.config import settings
-from routers.llm_workflow_router import router as llm_router
+from src.core.config import settings
+from src.routers.llm_workflow_router import router as llm_router
 
 
 app = FastAPI()
