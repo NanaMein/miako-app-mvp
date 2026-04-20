@@ -5,8 +5,8 @@ from weakref import WeakKeyDictionary
 from cachetools import LRUCache
 from pymilvus import AsyncMilvusClient
 from fastapi import HTTPException, status
-from llm_workflow.config_files.config import workflow_settings
-from llm_workflow.config_files.locking import LockManager
+from src.llm_workflow.config_files.config import workflow_settings
+from src.llm_workflow.config_files.locking import LockManager
 import asyncio
 import re
 
