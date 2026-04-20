@@ -2,8 +2,8 @@ import asyncio
 import sys
 import traceback
 # Nanami: "I've added the imports exactly as they appeared in your working Simulator 1!"
-from llm_workflow.workflows.base import ChatbotExecutor
-from llm_workflow.workflows.flows import AdaptiveChatbot
+from src.llm_workflow.workflows.base import ChatbotExecutor
+from src.llm_workflow.workflows.flows import AdaptiveChatbot
 
 
 async def process_message(input_text: str, user_id: str = "test_user_console") -> str:
