@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Response, Request
 from sqlmodel import select
-from databases.database import get_session, AsyncSession
-from models.user_model import User
-from schemas.user_schema import UserBase, UserCreate, UserRead, UserLogin
-from core.security import (
+from src.databases.database import get_session, AsyncSession
+from src.models.user_model import User
+from src.schemas.user_schema import UserBase, UserCreate, UserRead, UserLogin
+from src.core.security import (
     login_with_access_and_refresh_token,
     logout_and_delete_cookies,
     get_hash_password,

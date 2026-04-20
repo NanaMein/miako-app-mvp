@@ -1,6 +1,6 @@
 from sqlmodel import select
-from models.user_model import User
-from core.security import (
+from src.models.user_model import User
+from src.core.security import (
     get_hash_password,
     verify_hash_password,
     get_current_user_id,
@@ -9,7 +9,7 @@ from core.security import (
 )
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from databases.database import get_session
+from src.databases.database import get_session
 from llm_workflow.workflows.base import ChatbotExecutor
 from llm_workflow.workflows.flows import AdaptiveChatbot
 from pydantic import BaseModel, Field
