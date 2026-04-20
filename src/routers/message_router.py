@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.message_model import Message
-from schemas.message_schema import MessageBaseSchema, Role
+from src.models.message_model import Message
+from src.schemas.message_schema import MessageBaseSchema, Role
 from multi_agent_workflow.multi_agent_orchestrator import workflow_orchestrator
 from sqlmodel import select
-from databases.database import get_session
+from src.databases.database import get_session
 
 router = APIRouter(
     prefix="/message",
