@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError
-from core.config import settings
+from src.core.config import settings
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 from fastapi.concurrency import run_in_threadpool
