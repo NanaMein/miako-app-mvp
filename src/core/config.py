@@ -31,7 +31,7 @@ class Settings(BaseSettings):
             return SQLITE_URL
         return self.POSTGRES_URL.get_secret_value()
 
-settings = Settings()
+# settings = Settings()
 
 def _env_file_name(name: str):
     return BASE_DIR / "secret_keys" / f".env.{name}"
@@ -39,8 +39,13 @@ def _env_file_name(name: str):
 class LocalConfig(BaseSettings):
     SECRET_KEY: SecretStr = None
     DATABASE_URL: SecretStr = None
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 5
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 15
+    ALGORITHM: str = "HS256"
 
-    _database_type: str = "postgres"
+
+
+    _database_type: str = Field(default="postgres")
 
     model_config = SettingsConfigDict(
         env_file=_env_file_name("local"),
@@ -69,5 +74,16 @@ class LocalConfig(BaseSettings):
         else:
             raise ValueError("No database type provided")
 
+    @property
+    def access_token_minutes(self):
+        return self.ACCESS_TOKEN_EXPIRE_MINUTES
+
+    @property
+    def refresh_token_days(self):
+        return self.REFRESH_TOKEN_EXPIRE_DAYS
+
+    @property
+    def algorithm(self):
+        return self.ALGORITHM
 
 local_config = LocalConfig()
