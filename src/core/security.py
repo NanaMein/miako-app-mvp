@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any
 from jose import jwt
 from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError
-from src.core.config import settings
+from src.core.config import local_config
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, VerificationError, InvalidHashError
 from fastapi.concurrency import run_in_threadpool
@@ -13,6 +13,7 @@ from fastapi import HTTPException, status, Depends
 
 security = HTTPBearer(auto_error=False)
 ph = PasswordHasher()
+secret_key = local_config.secret_key
 
 async def get_hash_password(password: str) -> str:
     return await run_in_threadpool(ph.hash, password)
@@ -28,10 +29,10 @@ def token_generator(sub: str| Any, token_type: str = "access"):
     subject = str(sub)
     time_now = datetime.now(timezone.utc)
     if token_type == "access".strip().lower():
-        expire_time = time_now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire_time = time_now + timedelta(minutes=local_config.access_token_minutes)
         token_type = "access"
     else:
-        expire_time = time_now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        expire_time = time_now + timedelta(days=local_config.refresh_token_days)
         token_type = "refresh"
 
     to_encode = {
@@ -41,7 +42,7 @@ def token_generator(sub: str| Any, token_type: str = "access"):
         "iat": time_now
     }
     return jwt.encode(
-        to_encode, key=settings.SECRET_KEY.get_secret_value(), algorithm=settings.ALGORITHM
+        to_encode, key=secret_key.get_secret_value(), algorithm=local_config.algorithm
     )
 
 def token_decoder(token: str | None) -> dict[str, Any] | None:
@@ -51,8 +52,8 @@ def token_decoder(token: str | None) -> dict[str, Any] | None:
     try:
         return jwt.decode(
             token=token,
-            key=settings.SECRET_KEY.get_secret_value(),
-            algorithms=[settings.ALGORITHM]
+            key=secret_key.get_secret_value(),
+            algorithms=[local_config.algorithm]
         )
 
     except (JWTError, ExpiredSignatureError, JWTClaimsError):
