@@ -31,7 +31,7 @@ class Settings(BaseSettings):
             return SQLITE_URL
         return self.POSTGRES_URL.get_secret_value()
 
-# settings = Settings()
+settings = Settings()
 
 def _env_file_name(name: str):
     return BASE_DIR / "secret_keys" / f".env.{name}"
