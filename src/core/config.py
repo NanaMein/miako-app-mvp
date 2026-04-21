@@ -4,7 +4,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-DATABASE_PATH = BASE_DIR / "databases" / "test.db"
+DATABASE_PATH =  Path(__file__).resolve().parent.parent / "databases" / "test.db"
 DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 SQLITE_URL = f"sqlite+aiosqlite:///{DATABASE_PATH.as_posix()}"
 
@@ -32,3 +32,24 @@ class Settings(BaseSettings):
         return self.POSTGRES_URL.get_secret_value()
 
 settings = Settings()
+
+def _env_file_name(name: str):
+    return BASE_DIR / "secret_keys" / f".env.{name}"
+
+class LocalConfig(BaseSettings):
+    SECRET_KEY: SecretStr = None
+    DATABASE_URL: SecretStr = None
+
+
+    model_config = SettingsConfigDict(
+        env_file=_env_file_name("local"),
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
+    @property
+    def secret_key(self) -> SecretStr:
+        if not self.SECRET_KEY:
+            raise ValueError("No secret key provided")
+        return self.SECRET_KEY
+local_config = LocalConfig()
