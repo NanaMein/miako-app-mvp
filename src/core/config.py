@@ -31,7 +31,7 @@ class Settings(BaseSettings):
             return SQLITE_URL
         return self.POSTGRES_URL.get_secret_value()
 
-settings = Settings()
+# settings = Settings()
 
 def _env_file_name(name: str):
     return BASE_DIR / "secret_keys" / f".env.{name}"
@@ -40,6 +40,7 @@ class LocalConfig(BaseSettings):
     SECRET_KEY: SecretStr = None
     DATABASE_URL: SecretStr = None
 
+    _database_type: str = "postgres"
 
     model_config = SettingsConfigDict(
         env_file=_env_file_name("local"),
@@ -52,4 +53,21 @@ class LocalConfig(BaseSettings):
         if not self.SECRET_KEY:
             raise ValueError("No secret key provided")
         return self.SECRET_KEY
+
+    @property
+    def database_url(self) -> SecretStr:
+        if not self.DATABASE_URL:
+            raise ValueError(f"No database URL provided.")
+
+        if self._database_type == "postgres":
+            return self.DATABASE_URL
+
+        elif self._database_type == "sqlite":
+            global SQLITE_URL
+            return SecretStr(SQLITE_URL)
+
+        else:
+            raise ValueError("No database type provided")
+
+
 local_config = LocalConfig()
