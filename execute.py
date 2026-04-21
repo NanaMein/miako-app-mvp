@@ -20,7 +20,7 @@ if __name__ == "__main__":
         [
             sys.executable,
             "-m", "uvicorn",
-            "main:app",
+            "src.main:app",
             "--host", "0.0.0.0",
             "--port", "8000",
         ]
