@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from src.core.config import settings
+from src.core.config import local_config
 from src.routers.llm_workflow_router import router as llm_router
 
 
