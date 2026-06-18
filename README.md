@@ -1,3 +1,37 @@
+
+## 🔄 Refactoring in Progress
+
+This project is undergoing a major overhaul:
+
+▸ **Authentication:** `localStorage` → `cookie-only` with JTI + opaque tokens
+
+▸ **AI Framework:** `crewai` → `langgraph` (leaner, less verbose, 3x lighter)
+
+▸ **Database:** `PostgreSQL` → `MongoDB` (no complex relationships needed for chatbot logic)
+
+▸ **Caching:** In-memory → `Redis` (persistent, scalable)
+
+▸ **Vector Search:**
+  ▪ Zilliz Cloud (per collection, 100-collection limit) → single collection with metadata filtering
+  ▪ Added local `Qdrant` for fast, lightweight private vector search
+
+▸ **LLM Providers:** `Groq` + `OpenAI` → `Azure` primary (enterprise-grade content safety + private data) + `Groq` for web search
+
+▸ **Infrastructure:** Global singleton clients now use async context manager lifespan for proper connection lifecycle management
+
+> Track the journey: [refactor branch](https://github.com/pingu-hq/mirai-aiko-reborn)
+
+
+
+
+
+
+
+
+
+
+---
+
 # Miako: The High-Concurrency AI Assistant for Modern Customer Service
 
 Miako is an open-source, production-grade AI backend designed to bridge the gap between rigid, frustrating chatbots and fluid, human-like conversation. Built on an async-native FastAPI architecture, Miako is engineered to handle thousands of concurrent users with sub-second latency, providing a seamless and intelligent customer service experience.
